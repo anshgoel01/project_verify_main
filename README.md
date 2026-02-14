@@ -1,73 +1,276 @@
-# Welcome to your Lovable project
+📘 Student Verification Portal
 
-## Project info
+Coursera Certificate & LinkedIn Submission Validator
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+🎯 Overview
 
-## How can I edit this code?
+The Student Verification Portal is a full-stack web application designed to automatically verify guided project submissions using:
 
-There are several ways of editing your application.
+Coursera Completion Certificate Links
 
-**Use Lovable**
+LinkedIn Post Links
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+The platform validates:
 
-Changes made via Lovable will be committed automatically to this repo.
+✔ Student identity consistency
+✔ Certificate authenticity
+✔ Course/project match
+✔ Submission correctness
 
-**Use your preferred IDE**
+This version is student-facing, includes role-based access, and supports a dynamic leaderboard & admin controls.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+🚀 Key Features
+👨‍🎓 Student Features
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+Email-based signup & login
 
-Follow these steps:
+Restricted to @thapar.edu domain
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+College field entered manually
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Submit Coursera & LinkedIn links
 
-# Step 3: Install the necessary dependencies.
-npm i
+View My Submissions with course name headings
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Automatic verification status:
 
-**Edit a file directly in GitHub**
+Correct
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Wrong
 
-**Use GitHub Codespaces**
+Skipped (Timeout)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Failed
 
-## What technologies are used for this project?
+Delete personal submissions
 
-This project is built with:
+Real-time progress updates
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+🛡 Admin Features
 
-## How can I deploy this project?
+Admin / Student login selection
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Admin approval workflow
 
-## Can I connect a custom domain to my Lovable project?
+Admin dashboard
 
-Yes, you can!
+Add / Remove submissions
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Export submission report (Excel)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Exported Excel includes:
+
+Field	Description
+Student Name	Verified student
+Roll Number	Unique identifier
+Number of Submissions	Count per student
+Marks	floor(submissions / 3)
+🔐 Authentication & Access Control
+✅ Student Login Rules
+
+Only @thapar.edu emails allowed
+
+Other domains rejected
+
+✅ Admin Login Rules
+
+User selects Admin Login
+
+Admin request sent for approval
+
+Access granted only after approval
+
+🧠 Verification Logic
+
+The system uses a rule-based intelligent verification engine.
+
+No ML training model is used.
+
+1️⃣ Coursera Certificate Validation
+
+Fetch certificate page
+
+Extract student name ONLY from:
+
+Completed by <Student Name>
+
+
+No fallback extraction
+
+Missing pattern → Fail
+
+2️⃣ LinkedIn Post Validation
+
+No deep LinkedIn scraping
+
+Extract username from URL
+
+Normalize identity
+
+3️⃣ Identity Matching
+
+Compare:
+
+Logged-in student name
+
+Coursera certificate name
+
+LinkedIn username
+
+Using:
+
+✔ Case-insensitive normalization
+✔ Fuzzy string matching
+
+4️⃣ Course / Project Matching
+
+Compare:
+
+Coursera course title
+
+LinkedIn caption / hashtags
+
+5️⃣ Decision Logic
+Condition	Result
+Student Match = Yes AND Course Match = Yes	✅ Correct
+Else	❌ Wrong
+⚙️ Processing & Stability Mechanisms
+
+Each submission:
+
+✔ Processed independently
+✔ Hard timeout (12s)
+✔ Failure-safe termination
+
+Possible terminal states:
+
+Correct
+
+Wrong
+
+Skipped (Timeout)
+
+Failed (Error)
+
+❌ No infinite "Processing"
+
+📊 Leaderboard System
+
+Dynamic leaderboard filtered by college.
+
+Ranking based on:
+
+Highest Score
+
+Submission activity
+
+Scoring:
+
+Correct Submission → +10 points
+
+Wrong / Failed → 0 points
+
+🛠 Tech Stack
+🌐 Frontend
+
+React + TypeScript
+
+Vite
+
+TailwindCSS
+
+shadcn/ui
+
+⚡ Backend
+
+FastAPI (Python)
+
+Handles:
+
+✔ Verification
+✔ Scraping
+✔ Matching
+✔ Aggregation
+
+🗄 Database
+
+PostgreSQL (Supabase)
+
+Stores:
+
+Users
+
+Roles
+
+Submissions
+
+Leaderboard
+
+🔍 Matching Engine
+
+rapidfuzz (fuzzy matching)
+
+🌍 Scraping Tools
+
+HTTP Requests + Parsing
+
+Playwright (Coursera fallback)
+
+📧 Email Service
+
+Resend API
+
+📥 Submission Flow
+
+Student logs in
+
+Pastes Coursera + LinkedIn links
+
+Submission created
+
+Verification triggered
+
+Status updated
+
+📈 Marks Calculation Logic
+
+Marks are computed as:
+
+Marks = floor(Number_of_Submissions / 3)
+
+📦 Admin Export Report
+
+Generated Excel contains:
+
+✔ Student Name
+✔ Roll Number
+✔ Submission Count
+✔ Marks
+
+🛡 Reliability Guarantees
+
+✔ Hard timeouts
+✔ No stuck jobs
+✔ Failure isolation
+✔ Idempotent updates
+
+⚠️ Known Limitations
+
+LinkedIn content visibility restrictions
+
+Dynamic Coursera pages may require browser fallback
+
+External rate limiting
+
+🎯 Use Case
+
+Designed for:
+
+🏫 Academic institutions
+📊 Guided project validation
+✅ Submission authenticity checks
+🏆 Performance tracking
+
+👨‍💻 Project Type
+
+Academic / Educational Automation System

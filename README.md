@@ -1,276 +1,351 @@
-📘 Student Verification Portal
+# 📘 Student Verification Portal  
+### Coursera Certificate & LinkedIn Submission Validator
 
-Coursera Certificate & LinkedIn Submission Validator
+---
 
-🎯 Overview
+## 🎯 Overview
 
-The Student Verification Portal is a full-stack web application designed to automatically verify guided project submissions using:
+The **Student Verification Portal** is a full-stack web application designed to **automatically verify student guided project submissions** using:
 
-Coursera Completion Certificate Links
-
-LinkedIn Post Links
+- Coursera Completion Certificate Links  
+- LinkedIn Post Links  
 
 The platform validates:
 
-✔ Student identity consistency
-✔ Certificate authenticity
-✔ Course/project match
-✔ Submission correctness
+✔ Student identity consistency  
+✔ Certificate authenticity  
+✔ Course/project match  
+✔ Submission correctness  
 
-This version is student-facing, includes role-based access, and supports a dynamic leaderboard & admin controls.
+This version is **student-facing**, includes **role-based access control**, a **dynamic leaderboard**, and a **dedicated admin panel**.
 
-🚀 Key Features
-👨‍🎓 Student Features
+---
 
-Email-based signup & login
+## 🚀 Key Features
 
-Restricted to @thapar.edu domain
+### 👨‍🎓 Student Features
+- Email-based signup & login  
+- Access restricted to **@thapar.edu** domain  
+- College entered manually (no selection dropdown)  
+- Submit Coursera & LinkedIn links directly  
+- View **My Submissions** grouped by course name  
+- Automatic verification status:
+  - ✅ Correct
+  - ❌ Wrong
+  - ⏳ Processing
+  - ⚠ Skipped (Timeout)
+  - 🚫 Failed (Error)
+- Delete personal submissions  
+- Real-time status updates  
 
-College field entered manually
+---
 
-Submit Coursera & LinkedIn links
+### 🛡 Admin Features
+- Admin / Student login selection  
+- Admin approval workflow  
+- Admin dashboard access (after approval)  
+- View all submissions  
+- Add / Remove submissions  
+- Export submission report (Excel)
 
-View My Submissions with course name headings
+---
 
-Automatic verification status:
+## 🔐 Authentication & Access Control
 
-Correct
+### ✅ Student Login Rules
+- Only emails ending with **@thapar.edu** are allowed  
+- Other domains are rejected  
 
-Wrong
+---
 
-Skipped (Timeout)
+### ✅ Admin Login Rules
+- User selects **Login as Admin**  
+- Admin access request submitted  
+- Approval required before admin privileges granted  
 
-Failed
+---
 
-Delete personal submissions
+## 🧠 Verification Logic
 
-Real-time progress updates
+The system uses a **rule-based intelligent verification engine** (no ML training).
 
-🛡 Admin Features
+---
 
-Admin / Student login selection
+### 1️⃣ Coursera Certificate Validation
 
-Admin approval workflow
+- Certificate page fetched via HTTP request  
+- Student name extracted ONLY from:
+# 📘 Student Verification Portal  
+### Coursera Certificate & LinkedIn Submission Validator
 
-Admin dashboard
+---
 
-Add / Remove submissions
+## 🎯 Overview
 
-Export submission report (Excel)
+The **Student Verification Portal** is a full-stack web application designed to **automatically verify student guided project submissions** using:
 
-Exported Excel includes:
+- Coursera Completion Certificate Links  
+- LinkedIn Post Links  
 
-Field	Description
-Student Name	Verified student
-Roll Number	Unique identifier
-Number of Submissions	Count per student
-Marks	floor(submissions / 3)
-🔐 Authentication & Access Control
-✅ Student Login Rules
+The platform validates:
 
-Only @thapar.edu emails allowed
+✔ Student identity consistency  
+✔ Certificate authenticity  
+✔ Course/project match  
+✔ Submission correctness  
 
-Other domains rejected
+This version is **student-facing**, includes **role-based access control**, a **dynamic leaderboard**, and a **dedicated admin panel**.
 
-✅ Admin Login Rules
+---
 
-User selects Admin Login
+## 🚀 Key Features
 
-Admin request sent for approval
+### 👨‍🎓 Student Features
+- Email-based signup & login  
+- Access restricted to **@thapar.edu** domain  
+- College entered manually (no selection dropdown)  
+- Submit Coursera & LinkedIn links directly  
+- View **My Submissions** grouped by course name  
+- Automatic verification status:
+  - ✅ Correct
+  - ❌ Wrong
+  - ⏳ Processing
+  - ⚠ Skipped (Timeout)
+  - 🚫 Failed (Error)
+- Delete personal submissions  
+- Real-time status updates  
 
-Access granted only after approval
+---
 
-🧠 Verification Logic
+### 🛡 Admin Features
+- Admin / Student login selection  
+- Admin approval workflow  
+- Admin dashboard access (after approval)  
+- View all submissions  
+- Add / Remove submissions  
+- Export submission report (Excel)
 
-The system uses a rule-based intelligent verification engine.
+---
 
-No ML training model is used.
+## 🔐 Authentication & Access Control
 
-1️⃣ Coursera Certificate Validation
+### ✅ Student Login Rules
+- Only emails ending with **@thapar.edu** are allowed  
+- Other domains are rejected  
 
-Fetch certificate page
+---
 
-Extract student name ONLY from:
+### ✅ Admin Login Rules
+- User selects **Login as Admin**  
+- Admin access request submitted  
+- Approval required before admin privileges granted  
 
-Completed by <Student Name>
+---
 
+## 🧠 Verification Logic
 
-No fallback extraction
+The system uses a **rule-based intelligent verification engine** (no ML training).
 
-Missing pattern → Fail
+---
 
-2️⃣ LinkedIn Post Validation
+### 1️⃣ Coursera Certificate Validation
 
-No deep LinkedIn scraping
+- Certificate page fetched via HTTP request  
+- Student name extracted ONLY from:
+  Completed by <Student Name>
+- No fallback extraction  
+- Missing pattern → Verification fails  
 
-Extract username from URL
+---
 
-Normalize identity
+### 2️⃣ LinkedIn Post Validation
 
-3️⃣ Identity Matching
+- LinkedIn page content is NOT scraped  
+- Username extracted from LinkedIn URL  
+- Identity normalized  
 
-Compare:
+---
 
-Logged-in student name
+### 3️⃣ Identity Matching
 
-Coursera certificate name
+Compares:
 
-LinkedIn username
+- Logged-in student name  
+- Coursera certificate name  
+- LinkedIn username  
 
 Using:
 
-✔ Case-insensitive normalization
-✔ Fuzzy string matching
+✔ Case-insensitive normalization  
+✔ Fuzzy string matching (rapidfuzz)
 
-4️⃣ Course / Project Matching
+---
 
-Compare:
+### 4️⃣ Course / Project Matching
 
-Coursera course title
+Compares:
 
-LinkedIn caption / hashtags
+- Coursera course title  
+- LinkedIn caption / hashtags  
 
-5️⃣ Decision Logic
-Condition	Result
-Student Match = Yes AND Course Match = Yes	✅ Correct
-Else	❌ Wrong
-⚙️ Processing & Stability Mechanisms
+---
+
+### 5️⃣ Decision Logic
+
+| Condition | Result |
+|----------|--------|
+| Student Match = Yes AND Course Match = Yes | ✅ Correct |
+| Else | ❌ Wrong |
+
+---
+
+## ⚙️ Processing & Stability Mechanisms
 
 Each submission:
 
-✔ Processed independently
-✔ Hard timeout (12s)
-✔ Failure-safe termination
+✔ Processed independently  
+✔ Hard timeout (12 seconds)  
+✔ Failure-safe termination  
 
 Possible terminal states:
 
-Correct
-
-Wrong
-
-Skipped (Timeout)
-
-Failed (Error)
+- Correct  
+- Wrong  
+- Skipped (Timeout)  
+- Failed (Error)  
 
 ❌ No infinite "Processing"
 
-📊 Leaderboard System
+---
+
+## 📊 Leaderboard System
 
 Dynamic leaderboard filtered by college.
 
 Ranking based on:
 
-Highest Score
-
-Submission activity
+1. Highest Score  
+2. Submission activity  
 
 Scoring:
 
-Correct Submission → +10 points
+- Correct Submission → +10 points  
+- Wrong / Failed → 0 points  
 
-Wrong / Failed → 0 points
+---
 
-🛠 Tech Stack
-🌐 Frontend
+## 📈 Marks Calculation Logic
 
-React + TypeScript
+Marks computed as:
+Marks = floor(Number_of_Submissions / 3)
 
-Vite
 
-TailwindCSS
+---
 
-shadcn/ui
+## 📦 Admin Export Report
 
-⚡ Backend
+Generated Excel includes:
 
-FastAPI (Python)
+| Field | Description |
+|------|-------------|
+| Student Name | Verified student |
+| Roll Number | Unique identifier |
+| Number of Submissions | Count per student |
+| Marks | floor(submissions / 3) |
+
+---
+
+## 🛠 Tech Stack
+
+### 🌐 Frontend
+- React + TypeScript  
+- Vite  
+- TailwindCSS  
+- shadcn/ui  
+
+---
+
+### ⚡ Backend
+- FastAPI (Python)
 
 Handles:
 
-✔ Verification
-✔ Scraping
-✔ Matching
-✔ Aggregation
+✔ Verification  
+✔ Scraping  
+✔ Matching  
+✔ Aggregation  
 
-🗄 Database
+---
 
-PostgreSQL (Supabase)
+### 🗄 Database
+- PostgreSQL (Supabase)
 
 Stores:
 
-Users
+- Users  
+- Roles  
+- Submissions  
+- Leaderboard Data  
 
-Roles
+---
 
-Submissions
+### 🔍 Matching Engine
+- rapidfuzz (fuzzy matching)
 
-Leaderboard
+---
 
-🔍 Matching Engine
+### 🌍 Scraping Tools
+- HTTP Requests + Parsing  
+- Playwright (Coursera fallback)
 
-rapidfuzz (fuzzy matching)
+---
 
-🌍 Scraping Tools
+### 📧 Email Service
+- Resend API  
 
-HTTP Requests + Parsing
+---
 
-Playwright (Coursera fallback)
+## 📥 Submission Flow
 
-📧 Email Service
+1. Student logs in  
+2. Pastes Coursera + LinkedIn links  
+3. Submission created  
+4. Verification triggered  
+5. Status updated  
 
-Resend API
+---
 
-📥 Submission Flow
+## 🛡 Reliability Guarantees
 
-Student logs in
+✔ Hard timeouts  
+✔ No stuck submissions  
+✔ Failure isolation  
+✔ Atomic DB updates  
+✔ Guaranteed terminal states  
 
-Pastes Coursera + LinkedIn links
+---
 
-Submission created
+## ⚠️ Known Limitations
 
-Verification triggered
+- LinkedIn content visibility restrictions  
+- Dynamic Coursera pages may require browser fallback  
+- External platform rate limiting  
 
-Status updated
+---
 
-📈 Marks Calculation Logic
-
-Marks are computed as:
-
-Marks = floor(Number_of_Submissions / 3)
-
-📦 Admin Export Report
-
-Generated Excel contains:
-
-✔ Student Name
-✔ Roll Number
-✔ Submission Count
-✔ Marks
-
-🛡 Reliability Guarantees
-
-✔ Hard timeouts
-✔ No stuck jobs
-✔ Failure isolation
-✔ Idempotent updates
-
-⚠️ Known Limitations
-
-LinkedIn content visibility restrictions
-
-Dynamic Coursera pages may require browser fallback
-
-External rate limiting
-
-🎯 Use Case
+## 🎯 Use Case
 
 Designed for:
 
-🏫 Academic institutions
-📊 Guided project validation
-✅ Submission authenticity checks
-🏆 Performance tracking
+🏫 Academic Institutions  
+✅ Guided Project Verification  
+📊 Automated Submission Validation  
+🏆 Student Performance Tracking  
 
-👨‍💻 Project Type
+---
+
+## 👨‍💻 Project Type
 
 Academic / Educational Automation System
+
+

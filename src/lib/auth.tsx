@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         college_id: collegeId,
         roll_no: rollNo,
-      });
+      } as any);
       if (profileErr) return { error: profileErr.message };
     }
     return { error: null };

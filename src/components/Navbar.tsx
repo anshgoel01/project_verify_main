@@ -17,23 +17,14 @@ export default function Navbar() {
 
   useEffect(() => {
     if (!user) { setIsAdmin(false); return; }
-
-    // We can't rely on just user.id for the dependency if we want to be strict, 
-    // but practically it is fine. The lint warning probably was about something else or just general.
-    // The previous code had: .from("user_roles" as any)
-
-    const checkAdmin = async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle(); // Use maybeSingle instead of checking array length if we just want to know if it exists
-
-      setIsAdmin(!!data);
-    };
-
-    checkAdmin();
+    supabase
+      .from("user_roles" as any)
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .then(({ data }: any) => {
+        setIsAdmin(data && data.length > 0);
+      });
   }, [user]);
 
   const handleSignOut = async () => {
@@ -43,15 +34,15 @@ export default function Navbar() {
 
   const links = user
     ? [
-      // Regular admins (not head admin) only see Leaderboard, Profile, Admin
-      ...(isAdmin && !isHeadAdmin ? [] : [
-        { to: "/submit", label: "Submit", icon: Send },
-        { to: "/my-submissions", label: "My Submissions", icon: LayoutDashboard },
-      ]),
-      { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
-      { to: "/profile", label: "Profile", icon: User },
-      ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }] : []),
-    ]
+        // Regular admins (not head admin) only see Leaderboard, Profile, Admin
+        ...(isAdmin && !isHeadAdmin ? [] : [
+          { to: "/submit", label: "Submit", icon: Send },
+          { to: "/my-submissions", label: "My Submissions", icon: LayoutDashboard },
+        ]),
+        { to: "/leaderboard", label: "Leaderboard", icon: Trophy },
+        { to: "/profile", label: "Profile", icon: User },
+        ...(isAdmin ? [{ to: "/admin", label: "Admin", icon: ShieldCheck }] : []),
+      ]
     : [];
 
   return (

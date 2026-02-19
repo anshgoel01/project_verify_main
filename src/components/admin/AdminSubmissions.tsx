@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,7 +41,7 @@ export default function AdminSubmissions() {
     });
   }, []);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     const params = new URLSearchParams();
@@ -54,9 +54,9 @@ export default function AdminSubmissions() {
     );
     if (res.ok) setSubmissions(await res.json());
     setLoading(false);
-  }, [selectedCollege, selectedStatus]);
+  };
 
-  useEffect(() => { fetchSubmissions(); }, [fetchSubmissions]);
+  useEffect(() => { fetchSubmissions(); }, [selectedCollege, selectedStatus]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this submission?")) return;

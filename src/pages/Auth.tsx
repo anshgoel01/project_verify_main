@@ -54,7 +54,7 @@ export default function Auth() {
           // We need to wait a bit for the user to be created
           const { data: authData } = await supabase.auth.getUser();
           if (authData?.user) {
-            await supabase.from("admin_requests").insert({
+            await supabase.from("admin_requests" as any).insert({
               user_id: authData.user.id,
             });
             toast.info("Your admin request has been submitted and is pending approval.");
@@ -82,11 +82,11 @@ export default function Auth() {
 
           if (!roles || roles.length === 0) {
             // Check if they have a pending request
-            const { data: requests } = await supabase
-              .from("admin_requests")
+            const { data: requests } = await (supabase
+              .from("admin_requests" as any)
               .select("status")
               .eq("user_id", authData.user.id)
-              .maybeSingle();
+              .single() as any);
 
             if (requests?.status === "pending") {
               toast.info("Your admin request is still pending approval.");
@@ -94,7 +94,7 @@ export default function Auth() {
               toast.error("Your admin request was rejected.");
             } else {
               // Create a new request
-              await supabase.from("admin_requests").insert({
+              await supabase.from("admin_requests" as any).insert({
                 user_id: authData.user.id,
               });
               toast.info("Admin access requested. Please wait for approval.");

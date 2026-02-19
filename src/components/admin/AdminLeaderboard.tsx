@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -33,7 +33,7 @@ export default function AdminLeaderboard() {
     });
   }, []);
 
-  const fetchLeaderboard = useCallback(async () => {
+  const fetchLeaderboard = async () => {
     setLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
     const params = new URLSearchParams();
@@ -41,20 +41,15 @@ export default function AdminLeaderboard() {
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
 
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-leaderboard?${params}`,
-        { headers: { Authorization: `Bearer ${session?.access_token}` } }
-      );
-      if (res.ok) setEntries(await res.json());
-    } catch (error) {
-      console.error("Failed to fetch leaderboard:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCollege, dateFrom, dateTo]);
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-leaderboard?${params}`,
+      { headers: { Authorization: `Bearer ${session?.access_token}` } }
+    );
+    if (res.ok) setEntries(await res.json());
+    setLoading(false);
+  };
 
-  useEffect(() => { fetchLeaderboard(); }, [fetchLeaderboard]);
+  useEffect(() => { fetchLeaderboard(); }, [selectedCollege, dateFrom, dateTo]);
 
   const handleExport = async () => {
     setExporting(true);

@@ -1,4 +1,4 @@
-# 📘 Student Verification Portal  
+# 📘 Student Verification Portal
 ### Coursera Certificate & LinkedIn Submission Validator
 
 ---
@@ -7,21 +7,22 @@
 
 The **Student Verification Portal** is a full-stack web application that **automatically verifies guided project submissions** using:
 
-- Coursera Certificate Links  
-- LinkedIn Post Links  
+- Coursera Completion Certificate Links
+- LinkedIn Post Links
 
 The system validates:
 
-✔ Student identity consistency  
-✔ Certificate authenticity  
-✔ Course/project match  
-✔ Submission correctness  
+✔ Student identity consistency
+✔ Certificate authenticity
+✔ Course/project match
+✔ Submission correctness
 
 This version is **student-facing**, with **role-based access**, a **dynamic leaderboard**, and an **admin panel**.
 
 ---
 
 ## 🚀 Features
+
 
 ### 👨‍🎓 Student
 - Signup/Login (restricted to **@thapar.edu**)  

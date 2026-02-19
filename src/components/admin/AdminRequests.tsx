@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,15 +28,15 @@ export default function AdminRequests() {
   const [existingAdmins, setExistingAdmins] = useState<{ user_id: string; name: string; email: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
-    const { data: reqs } = await (supabase
-      .from("admin_requests" as any)
+    const { data: reqs } = await supabase
+      .from("admin_requests") // removed 'as any'
       .select("*")
-      .order("created_at", { ascending: false }) as any);
+      .order("created_at", { ascending: false });
 
     if (reqs) {
-      const userIds = reqs.map((r: any) => r.user_id);
+      const userIds = reqs.map((r) => r.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
         .select("user_id, full_name, email")
@@ -44,7 +44,7 @@ export default function AdminRequests() {
 
       const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
 
-      setRequests(reqs.map((r: any) => ({
+      setRequests(reqs.map((r) => ({
         ...r,
         user_email: profileMap.get(r.user_id)?.email || "Unknown",
         user_name: profileMap.get(r.user_id)?.full_name || "Unknown",
@@ -56,7 +56,7 @@ export default function AdminRequests() {
       const { data: roles } = await supabase
         .from("user_roles")
         .select("user_id")
-        .eq("role", "admin" as any);
+        .eq("role", "admin"); // removed 'as any'
 
       if (roles && roles.length > 0) {
         const adminUserIds = roles.map((r) => r.user_id);
@@ -74,15 +74,15 @@ export default function AdminRequests() {
     }
 
     setLoading(false);
-  };
+  }, [isHeadAdmin]); // added dependency
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => { fetchRequests(); }, [fetchRequests]); // fixed dependency
 
   const handleAction = async (requestId: string, userId: string, action: "approved" | "rejected") => {
-    const { error } = await (supabase
-      .from("admin_requests" as any)
+    const { error } = await supabase
+      .from("admin_requests") // removed 'as any'
       .update({ status: action, reviewed_at: new Date().toISOString() })
-      .eq("id", requestId) as any);
+      .eq("id", requestId);
 
     if (error) {
       toast.error("Failed to update request");
@@ -92,7 +92,7 @@ export default function AdminRequests() {
     if (action === "approved") {
       const { error: roleErr } = await supabase
         .from("user_roles")
-        .insert({ user_id: userId, role: "admin" } as any);
+        .insert({ user_id: userId, role: "admin" }); // removed 'as any'
       if (roleErr) {
         toast.error("Failed to assign admin role");
         return;
@@ -108,7 +108,7 @@ export default function AdminRequests() {
       .from("user_roles")
       .delete()
       .eq("user_id", userId)
-      .eq("role", "admin" as any);
+      .eq("role", "admin"); // removed 'as any'
 
     if (error) {
       toast.error("Failed to remove admin role");

@@ -21,18 +21,39 @@ export default function AdminStats() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-stats`,
-        { headers: { Authorization: `Bearer ${session?.access_token}` } }
-      );
-      if (!res.ok) {
-        setError("Failed to load stats");
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          setError("No active session found");
+          setLoading(false);
+          return;
+        }
+
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-stats`;
+        console.log("Fetching stats from:", url);
+
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("Stats fetch error:", res.status, text);
+          setError(`Failed to load stats (${res.status})`);
+          setLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        setStats(data);
+      } catch (err: any) {
+        console.error("Stats network error:", err);
+        setError(`Error: ${err.message}`);
+      } finally {
         setLoading(false);
-        return;
       }
-      setStats(await res.json());
-      setLoading(false);
     };
     fetchStats();
   }, []);

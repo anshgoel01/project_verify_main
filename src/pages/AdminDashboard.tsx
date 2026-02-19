@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Users, FileCheck, BarChart3, ShieldCheck, UserCheck } from "lucide-react";
 import AdminStats from "@/components/admin/AdminStats";
@@ -25,12 +25,13 @@ export default function AdminDashboard() {
       return;
     }
     supabase
-      .from("user_roles" as any)
+      .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
-      .then(({ data }: any) => {
-        setIsAdmin(data && data.length > 0);
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsAdmin(!!data);
       });
   }, [user, authLoading, navigate]);
 

@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function normalizeText(text: string | null): string {
+export function normalizeText(text: string | null): string {
   if (!text) return "";
   return text
     .toLowerCase()
@@ -15,7 +15,7 @@ function normalizeText(text: string | null): string {
     .trim();
 }
 
-function tokenSortRatio(a: string, b: string): number {
+export function tokenSortRatio(a: string, b: string): number {
   const tokensA = a.split(" ").sort().join(" ");
   const tokensB = b.split(" ").sort().join(" ");
   const maxLen = Math.max(tokensA.length, tokensB.length);
@@ -24,7 +24,7 @@ function tokenSortRatio(a: string, b: string): number {
   return ((1 - dist / maxLen) * 100);
 }
 
-function levenshtein(a: string, b: string): number {
+export function levenshtein(a: string, b: string): number {
   const m = a.length, n = b.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
   for (let i = 0; i <= m; i++) dp[i][0] = i;
@@ -39,7 +39,7 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
-function namesMatch(a: string, b: string, threshold = 80): boolean {
+export function namesMatch(a: string, b: string, threshold = 80): boolean {
   if (!a || !b) return false;
   return tokenSortRatio(a, b) >= threshold;
 }

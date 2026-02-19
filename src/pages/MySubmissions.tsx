@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +39,7 @@ export default function MySubmissions() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
       .from("submissions")
@@ -48,7 +48,7 @@ export default function MySubmissions() {
       .order("created_at", { ascending: false });
     if (data) setSubmissions(data);
     setLoading(false);
-  };
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("submissions").delete().eq("id", id);
@@ -71,7 +71,7 @@ export default function MySubmissions() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, fetchSubmissions]);
 
   // Group submissions by course
   const groupedByCourse = submissions.reduce<Record<string, Submission[]>>((acc, s) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +29,7 @@ export default function Leaderboard() {
     });
   }, []);
 
-  const fetchLeaderboard = useCallback(async () => {
+  const fetchLeaderboard = async () => {
     let query = supabase
       .from("profiles")
       .select("user_id, full_name, college_id, total_submissions, correct_submissions, score, updated_at, colleges(name)")
@@ -43,27 +43,15 @@ export default function Leaderboard() {
 
     const { data } = await query;
     if (data) {
-      // Create a temporary type for the join result since Supabase types might not be fully inferred
-      type LeaderboardJoinResult = {
-        user_id: string;
-        full_name: string;
-        college_id: string;
-        total_submissions: number;
-        correct_submissions: number;
-        score: number;
-        updated_at: string;
-        colleges: { name: string } | null;
-      };
-
       setEntries(
-        (data as unknown as LeaderboardJoinResult[]).map((d) => ({
+        data.map((d: any) => ({
           ...d,
           college_name: d.colleges?.name || "Unknown",
         }))
       );
     }
     setLoading(false);
-  }, [selectedCollege]);
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -77,7 +65,7 @@ export default function Leaderboard() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [fetchLeaderboard]);
+  }, [selectedCollege]);
 
   const rankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;

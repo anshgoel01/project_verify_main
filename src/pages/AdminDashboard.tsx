@@ -10,11 +10,14 @@ import AdminLeaderboard from "@/components/admin/AdminLeaderboard";
 import AdminSubmissions from "@/components/admin/AdminSubmissions";
 import AdminRequests from "@/components/admin/AdminRequests";
 
-const HEAD_ADMIN_EMAIL = "agoel2_be23@thapar.edu";
+const HEAD_ADMIN_EMAIL = [
+  "agoel2_be23@thapar.edu",
+  "prashant.singh@thapar.edu"
+];
 
 export default function AdminDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
-  const isHeadAdmin = profile?.email === HEAD_ADMIN_EMAIL;
+  const isHeadAdmin = HEAD_ADMIN_EMAIL.includes(profile?.email ?? "");
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 

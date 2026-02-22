@@ -8,8 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
-const THAPAR_COLLEGE_ID = "d8958a90-d06a-467e-818d-64277f84f5c3";
+import { THAPAR_COLLEGE_ID } from "@/lib/constants";
 
 export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(false);
@@ -73,11 +72,11 @@ export default function Auth() {
 
           if (!roles || roles.length === 0) {
             // Check if they have a pending request
-            const { data: requests } = await (supabase
-              .from("admin_requests" as any)
+            const { data: requests } = await supabase
+              .from("admin_requests")
               .select("status")
               .eq("user_id", authData.user.id)
-              .single() as any);
+              .maybeSingle();
 
             if (requests?.status === "pending") {
               toast.info("Your admin request is still pending approval.");
@@ -85,7 +84,7 @@ export default function Auth() {
               toast.error("Your admin request was rejected.");
             } else {
               // Create a new request
-              await supabase.from("admin_requests" as any).insert({
+              await supabase.from("admin_requests").insert({
                 user_id: authData.user.id,
               });
               toast.info("Admin access requested. Please wait for approval.");
@@ -176,7 +175,7 @@ export default function Auth() {
                         if (role === "admin") {
                           const { data: authData } = await supabase.auth.getUser();
                           if (authData?.user) {
-                            await supabase.from("admin_requests" as any).insert({
+                            await supabase.from("admin_requests").insert({
                               user_id: authData.user.id,
                             });
                             toast.info("Your admin request has been submitted and is pending approval.");

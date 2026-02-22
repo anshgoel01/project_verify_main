@@ -1,5 +1,20 @@
-// @ts-nocheck
 import { createClient } from "supabase";
+
+type SubmissionRow = {
+  id: string;
+  user_id: string;
+  coursera_link: string;
+  linkedin_link: string;
+};
+
+type VerifyResult = {
+  coursera_name: string | null;
+  linkedin_username: string | null;
+  coursera_course: string | null;
+  student_match: boolean;
+  course_match: boolean;
+  status: string;
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -175,14 +190,11 @@ function timeoutPromise(ms: number): Promise<never> {
   return new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms));
 }
 
-async function verifySubmission(supabase: ReturnType<typeof createClient>, submission: any, userName: string): Promise<{
-  coursera_name: string | null;
-  linkedin_username: string | null;
-  coursera_course: string | null;
-  student_match: boolean;
-  course_match: boolean;
-  status: string;
-}> {
+async function verifySubmission(
+  supabase: ReturnType<typeof createClient>,
+  submission: SubmissionRow,
+  userName: string
+): Promise<VerifyResult> {
   const { name: courseraName, course: courseraCourse } = await scrapeCoursera(submission.coursera_link);
   const linkedinUsername = extractLinkedInUsername(submission.linkedin_link);
 
@@ -289,8 +301,8 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ status: result.status }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    } catch (timeoutErr: any) {
-      if (timeoutErr.message === "TIMEOUT") {
+    } catch (timeoutErr: unknown) {
+      if (timeoutErr instanceof Error && timeoutErr.message === "TIMEOUT") {
         console.log("Verification timed out:", submission_id);
         await supabase.from("submissions").update({
           status: "skipped",
@@ -303,14 +315,14 @@ Deno.serve(async (req: Request) => {
       }
       throw timeoutErr;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Verification failed:", submission_id, err);
 
     if (submission_id) {
       try {
         await supabase.from("submissions").update({
           status: "failed",
-          error_message: err.message || "Verification failed",
+          error_message: err instanceof Error ? err.message : "Verification failed",
         }).eq("id", submission_id);
       } catch (updateErr) {
         console.error("Failed to update submission status:", submission_id, updateErr);

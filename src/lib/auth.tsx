@@ -8,6 +8,7 @@ type Profile = {
   full_name: string;
   email: string;
   college_id: string;
+  roll_no: string | null;
   score: number;
   total_submissions: number;
   correct_submissions: number;
@@ -91,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         college_id: collegeId,
         roll_no: rollNo,
-      } as any);
+      });
       if (profileErr) return { error: profileErr.message };
     }
     return { error: null };

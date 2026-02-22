@@ -44,23 +44,26 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // GET submissions
+    // GET submissions with pagination
     const url = new URL(req.url);
     const collegeId = url.searchParams.get("college_id");
     const status = url.searchParams.get("status");
     const userId = url.searchParams.get("user_id");
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(20, parseInt(url.searchParams.get("limit") || "50", 10)));
+    const offset = (page - 1) * limit;
 
     let query = adminClient
       .from("submissions")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
-      .limit(500);
+      .range(offset, offset + limit - 1);
 
     if (collegeId && collegeId !== "all") query = query.eq("college_id", collegeId);
     if (status && status !== "all") query = query.eq("status", status);
     if (userId) query = query.eq("user_id", userId);
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw error;
 
     // Fetch profiles and colleges separately
@@ -91,7 +94,13 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    return new Response(JSON.stringify(submissions), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({
+      submissions,
+      total: count ?? 0,
+      page,
+      limit,
+      totalPages: count != null ? Math.ceil(count / limit) : 1,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     const status = e.message === "Unauthorized" ? 401 : e.message === "Forbidden" ? 403 : 500;
     return new Response(JSON.stringify({ error: e.message }), { status, headers: corsHeaders });

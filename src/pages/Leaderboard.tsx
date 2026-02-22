@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +29,8 @@ export default function Leaderboard() {
     });
   }, []);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true);
     let query = supabase
       .from("profiles")
       .select("user_id, full_name, college_id, total_submissions, correct_submissions, score, updated_at, colleges(name)")
@@ -44,17 +45,16 @@ export default function Leaderboard() {
     const { data } = await query;
     if (data) {
       setEntries(
-        data.map((d: any) => ({
+        data.map((d: { colleges?: { name?: string } }) => ({
           ...d,
           college_name: d.colleges?.name || "Unknown",
         }))
       );
     }
     setLoading(false);
-  };
+  }, [selectedCollege]);
 
   useEffect(() => {
-    setLoading(true);
     fetchLeaderboard();
 
     const channel = supabase
@@ -65,7 +65,7 @@ export default function Leaderboard() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [selectedCollege]);
+  }, [fetchLeaderboard]);
 
   const rankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;

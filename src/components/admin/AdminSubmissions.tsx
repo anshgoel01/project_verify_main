@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
-import { Loader2, FileCheck, ExternalLink, Trash2, Download } from "lucide-react";
+import { Loader2, FileCheck, ExternalLink, Trash2, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
@@ -31,9 +31,13 @@ export default function AdminSubmissions() {
   const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
   const [selectedCollege, setSelectedCollege] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const prevFiltersRef = useRef({ college: selectedCollege, status: selectedStatus });
 
   useEffect(() => {
     supabase.from("colleges").select("id, name").order("name").then(({ data }) => {
@@ -41,20 +45,35 @@ export default function AdminSubmissions() {
     });
   }, []);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (pageOverride?: number) => {
     setLoading(true);
+    const filtersChanged = prevFiltersRef.current.college !== selectedCollege || prevFiltersRef.current.status !== selectedStatus;
+    if (filtersChanged) {
+      prevFiltersRef.current = { college: selectedCollege, status: selectedStatus };
+      setPage(1);
+    }
+    const pageToFetch = pageOverride ?? (filtersChanged ? 1 : page);
+
     const { data: { session } } = await supabase.auth.getSession();
     const params = new URLSearchParams();
     if (selectedCollege !== "all") params.set("college_id", selectedCollege);
     if (selectedStatus !== "all") params.set("status", selectedStatus);
+    params.set("page", String(pageToFetch));
+    params.set("limit", "50");
 
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-submissions?${params}`,
       { headers: { Authorization: `Bearer ${session?.access_token}` } }
     );
-    if (res.ok) setSubmissions(await res.json());
+    if (res.ok) {
+      const json = await res.json();
+      const list = Array.isArray(json) ? json : (json.submissions ?? []);
+      setSubmissions(list);
+      setTotal(Array.isArray(json) ? list.length : (json.total ?? list.length));
+      setTotalPages(Array.isArray(json) ? 1 : (json.totalPages ?? 1));
+    }
     setLoading(false);
-  }, [selectedCollege, selectedStatus]);
+  }, [selectedCollege, selectedStatus, page]);
 
   useEffect(() => { fetchSubmissions(); }, [fetchSubmissions]);
 
@@ -75,7 +94,7 @@ export default function AdminSubmissions() {
     );
     if (res.ok) {
       toast.success("Submission deleted");
-      setSubmissions((prev) => prev.filter((s) => s.id !== id));
+      fetchSubmissions();
     } else {
       toast.error("Failed to delete submission");
     }
@@ -200,6 +219,34 @@ export default function AdminSubmissions() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        )}
+        {!loading && submissions.length > 0 && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <p className="text-sm text-muted-foreground">
+              Showing {((page - 1) * 50) + 1}-{Math.min(page * 50, total)} of {total}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" /> Previous
+              </Button>
+              <span className="text-sm">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

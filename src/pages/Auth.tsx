@@ -19,7 +19,9 @@ export default function Auth() {
   const [rollNo, setRollNo] = useState("");
   const [role, setRole] = useState<"student" | "admin">("student");
   const [loading, setLoading] = useState(false);
-  const { user, signUp, signIn } = useAuth();
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const { user, signUp, signIn, verifyOtp } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,19 +49,8 @@ export default function Auth() {
       if (error) {
         toast.error(error);
       } else {
-        toast.success("Account created! Please check your email to verify.");
-
-        // If they selected admin role, create an admin request
-        if (role === "admin") {
-          // We need to wait a bit for the user to be created
-          const { data: authData } = await supabase.auth.getUser();
-          if (authData?.user) {
-            await supabase.from("admin_requests" as any).insert({
-              user_id: authData.user.id,
-            });
-            toast.info("Your admin request has been submitted and is pending approval.");
-          }
-        }
+        setIsVerifying(true);
+        toast.success("Signup successful! Please enter the OTP sent to your email.");
       }
     } else {
       // Sign in flow
@@ -161,6 +152,51 @@ export default function Auth() {
               {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Sign In"}
             </Button>
           </form>
+          {isSignUp && isVerifying && (
+            <div className="mt-6 space-y-4 border-t pt-6">
+              <div className="space-y-2 text-center">
+                <Label htmlFor="otp">Enter Verification Code</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="otp"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    placeholder="Enter 6-digit code"
+                    className="text-center tracking-widest text-lg font-bold"
+                  />
+                  <Button
+                    onClick={async () => {
+                      setLoading(true);
+                      const { error } = await verifyOtp(email, otpCode);
+                      if (error) {
+                        toast.error(error);
+                      } else {
+                        toast.success("Email verified successfully!");
+                        // Create admin request if needed
+                        if (role === "admin") {
+                          const { data: authData } = await supabase.auth.getUser();
+                          if (authData?.user) {
+                            await supabase.from("admin_requests" as any).insert({
+                              user_id: authData.user.id,
+                            });
+                            toast.info("Your admin request has been submitted and is pending approval.");
+                          }
+                        }
+                        navigate("/submit");
+                      }
+                      setLoading(false);
+                    }}
+                    disabled={loading || otpCode.length < 6}
+                  >
+                    Verify
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Check your @thapar.edu email for the verification code.
+                </p>
+              </div>
+            </div>
+          )}
           <div className="mt-4 text-center text-sm">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
             <button className="text-primary underline" onClick={() => setIsSignUp(!isSignUp)}>

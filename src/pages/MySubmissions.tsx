@@ -3,22 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import StatusBadge from "@/components/StatusBadge";
-import { Loader2, ExternalLink, Trash2 } from "lucide-react";
+import { Loader2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
 type Submission = {
   id: string;
@@ -48,16 +35,6 @@ export default function MySubmissions() {
       .order("created_at", { ascending: false });
     if (data) setSubmissions(data);
     setLoading(false);
-  };
-
-  const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("submissions").delete().eq("id", id);
-    if (error) {
-      toast.error("Failed to delete submission");
-    } else {
-      toast.success("Submission deleted");
-      setSubmissions((prev) => prev.filter((s) => s.id !== id));
-    }
   };
 
   useEffect(() => {
@@ -112,12 +89,10 @@ export default function MySubmissions() {
                     <TableRow>
                       <TableHead>#</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Coursera Name</TableHead>
                       <TableHead>Student Match</TableHead>
                       <TableHead>Course Match</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Links</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -125,7 +100,6 @@ export default function MySubmissions() {
                       <TableRow key={s.id}>
                         <TableCell className="font-medium">{subs.length - i}</TableCell>
                         <TableCell className="whitespace-nowrap">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
-                        <TableCell>{s.coursera_name || "—"}</TableCell>
                         <TableCell>{s.student_match === null ? "—" : s.student_match ? "✅ Yes" : "❌ No"}</TableCell>
                         <TableCell>{s.course_match === null ? "—" : s.course_match ? "✅ Yes" : "❌ No"}</TableCell>
                         <TableCell><StatusBadge status={s.status} /></TableCell>
@@ -138,27 +112,6 @@ export default function MySubmissions() {
                               <ExternalLink className="h-4 w-4" />
                             </a>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Submission?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This action cannot be undone. This will permanently delete this submission.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(s.id)}>Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
                         </TableCell>
                       </TableRow>
                     ))}

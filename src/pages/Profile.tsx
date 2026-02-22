@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-
-const HEAD_ADMIN_EMAIL = "agoel2_be23@thapar.edu";
+import { isHeadAdmin } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +42,7 @@ export default function Profile() {
     }
     if (profile) {
       setFullName(profile.full_name);
-      setRollNo((profile as any).roll_no || "");
+      setRollNo(profile.roll_no || "");
     }
   }, [profile]);
 
@@ -52,7 +51,7 @@ export default function Profile() {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName, roll_no: rollNo } as any)
+      .update({ full_name: fullName, roll_no: rollNo })
       .eq("user_id", profile.user_id);
     if (error) {
       toast.error("Failed to update profile");
@@ -65,7 +64,7 @@ export default function Profile() {
   };
 
   const [isAdmin, setIsAdmin] = useState(false);
-  const isHeadAdmin = profile?.email === HEAD_ADMIN_EMAIL;
+  const headAdmin = isHeadAdmin(profile?.email);
 
   useEffect(() => {
     if (!profile) return;
@@ -73,8 +72,8 @@ export default function Profile() {
       .from("user_roles")
       .select("role")
       .eq("user_id", profile.user_id)
-      .eq("role", "admin" as any)
-      .then(({ data }: any) => {
+      .eq("role", "admin")
+      .then(({ data }) => {
         setIsAdmin(data && data.length > 0);
       });
   }, [profile]);
@@ -82,7 +81,7 @@ export default function Profile() {
   if (!profile) return null;
 
   // Hide submission stats for regular admins (not head admin)
-  const showStats = !isAdmin || isHeadAdmin;
+  const showStats = !isAdmin || headAdmin;
 
   const stats = [
     { icon: Send, label: "Total Submissions", value: profile.total_submissions },
@@ -118,7 +117,7 @@ export default function Profile() {
                 <Button onClick={handleSave} disabled={saving} className="gap-1.5">
                   <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save"}
                 </Button>
-                <Button variant="outline" onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo((profile as any).roll_no || ""); }} className="gap-1.5">
+                <Button variant="outline" onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo(profile.roll_no || ""); }} className="gap-1.5">
                   <X className="h-4 w-4" /> Cancel
                 </Button>
               </div>
@@ -127,8 +126,8 @@ export default function Profile() {
             <div className="space-y-2">
               <p className="text-2xl font-bold">{profile.full_name}</p>
               <p className="text-muted-foreground">{profile.email}</p>
-              {(profile as any).roll_no && (
-                <p className="text-sm text-muted-foreground">Roll No: {(profile as any).roll_no}</p>
+              {profile.roll_no && (
+                <p className="text-sm text-muted-foreground">Roll No: {profile.roll_no}</p>
               )}
               <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                 🎓 {collegeName}

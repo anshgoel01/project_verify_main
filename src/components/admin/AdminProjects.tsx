@@ -1,0 +1,223 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Loader2, FolderOpen, Save, CheckCircle } from "lucide-react";
+import { toast } from "sonner";
+
+const LEVELS = ["Beginner", "Intermediate", "Advanced", "Mixed"] as const;
+const LEVEL_WEIGHTS: Record<string, number> = {
+  Beginner: 0.25,
+  Intermediate: 0.50,
+  Advanced: 0.75,
+  Mixed: 0.60,
+};
+
+type Project = {
+  id: string;
+  course_name: string;
+  level: string;
+  weight: number;
+};
+
+export default function AdminProjects() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [localEdits, setLocalEdits] = useState<Record<string, { level: string; weight: number }>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+
+  const fetchProjects = async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-projects`,
+      { headers: { Authorization: `Bearer ${session?.access_token}` } }
+    );
+    if (res.ok) {
+      const data: Project[] = await res.json();
+      setProjects(data);
+      const edits: Record<string, { level: string; weight: number }> = {};
+      for (const p of data) {
+        edits[p.id] = { level: p.level, weight: p.weight };
+      }
+      setLocalEdits(edits);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchProjects(); }, []);
+
+  const handleLevelChange = (id: string, newLevel: string) => {
+    setLocalEdits((prev) => {
+      const old = prev[id];
+      const oldDefault = LEVEL_WEIGHTS[old?.level || "Beginner"];
+      const isDefault = Math.abs((old?.weight ?? 0) - oldDefault) < 0.001;
+      return {
+        ...prev,
+        [id]: {
+          level: newLevel,
+          weight: isDefault ? LEVEL_WEIGHTS[newLevel] : old.weight,
+        },
+      };
+    });
+    setSaved((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const handleWeightChange = (id: string, val: number) => {
+    setLocalEdits((prev) => ({ ...prev, [id]: { ...prev[id], weight: val } }));
+    setSaved((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const handleSave = async (id: string) => {
+    setSaving((prev) => ({ ...prev, [id]: true }));
+    const edit = localEdits[id];
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-projects`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, level: edit.level, weight: edit.weight }),
+      }
+    );
+    if (res.ok) {
+      toast.success("Weight saved");
+      setSaved((prev) => ({ ...prev, [id]: true }));
+    } else {
+      toast.error("Failed to save");
+    }
+    setSaving((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const grouped = LEVELS.reduce((acc, level) => {
+    acc[level] = projects.filter((p) => (localEdits[p.id]?.level || p.level) === level);
+    return acc;
+  }, {} as Record<string, Project[]>);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 mb-2">
+        <FolderOpen className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">Project Monitoring Panel</h2>
+        <span className="text-sm text-muted-foreground ml-2">
+          {projects.length} unique project{projects.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {LEVELS.map((level) => {
+        const items = grouped[level];
+        return (
+          <Card key={level}>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`inline-block w-2.5 h-2.5 rounded-full ${
+                      level === "Beginner" ? "bg-emerald-500" :
+                      level === "Intermediate" ? "bg-amber-500" :
+                      level === "Advanced" ? "bg-red-500" :
+                      "bg-violet-500"
+                    }`}
+                  />
+                  {level}
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Default: {LEVEL_WEIGHTS[level]} · {items.length} project{items.length !== 1 ? "s" : ""}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No projects at this level.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {items.map((p) => {
+                    const edit = localEdits[p.id];
+                    return (
+                      <div
+                        key={p.id}
+                        className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border p-3"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" title={p.course_name}>
+                            {p.course_name}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <Select
+                            value={edit?.level || p.level}
+                            onValueChange={(v) => handleLevelChange(p.id, v)}
+                          >
+                            <SelectTrigger className="h-8 w-[130px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {LEVELS.map((l) => (
+                                <SelectItem key={l} value={l}>{l}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={(edit?.weight ?? p.weight).toFixed(2)}
+                              onChange={(e) =>
+                                handleWeightChange(
+                                  p.id,
+                                  Math.min(1, Math.max(0, parseFloat(e.target.value) || 0))
+                                )
+                              }
+                              className="w-[70px] h-8 text-xs text-center p-1"
+                              min={0}
+                              max={1}
+                              step={0.01}
+                            />
+                          </div>
+
+                          <Button
+                            size="sm"
+                            variant={saved[p.id] ? "ghost" : "outline"}
+                            onClick={() => handleSave(p.id)}
+                            disabled={saving[p.id]}
+                            className="h-8 w-8 p-0"
+                          >
+                            {saving[p.id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : saved[p.id] ? (
+                              <CheckCircle className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}

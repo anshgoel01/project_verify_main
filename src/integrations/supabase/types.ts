@@ -106,6 +106,30 @@ export type Database = {
           },
         ]
       }
+      projects: {
+        Row: {
+          course_name: string
+          created_at: string
+          id: string
+          level: string
+          weight: number
+        }
+        Insert: {
+          course_name: string
+          created_at?: string
+          id?: string
+          level?: string
+          weight?: number
+        }
+        Update: {
+          course_name?: string
+          created_at?: string
+          id?: string
+          level?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       submissions: {
         Row: {
           college_id: string
@@ -116,11 +140,13 @@ export type Database = {
           created_at: string
           error_message: string | null
           id: string
+          level: string | null
           linkedin_link: string
           linkedin_username: string | null
           status: string
           student_match: boolean | null
           user_id: string
+          weight: number | null
         }
         Insert: {
           college_id: string
@@ -131,11 +157,13 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          level?: string | null
           linkedin_link: string
           linkedin_username?: string | null
           status?: string
           student_match?: boolean | null
           user_id: string
+          weight?: number | null
         }
         Update: {
           college_id?: string
@@ -146,11 +174,13 @@ export type Database = {
           created_at?: string
           error_message?: string | null
           id?: string
+          level?: string | null
           linkedin_link?: string
           linkedin_username?: string | null
           status?: string
           student_match?: boolean | null
           user_id?: string
+          weight?: number | null
         }
         Relationships: [
           {
@@ -331,7 +361,6 @@ export const Constants = {
   },
 } as const
 
-
 // export type Json =
 //   | string
 //   | number
@@ -348,6 +377,30 @@ export const Constants = {
 //   }
 //   public: {
 //     Tables: {
+//       admin_requests: {
+//         Row: {
+//           created_at: string
+//           id: string
+//           reviewed_at: string | null
+//           status: string
+//           user_id: string
+//         }
+//         Insert: {
+//           created_at?: string
+//           id?: string
+//           reviewed_at?: string | null
+//           status?: string
+//           user_id: string
+//         }
+//         Update: {
+//           created_at?: string
+//           id?: string
+//           reviewed_at?: string | null
+//           status?: string
+//           user_id?: string
+//         }
+//         Relationships: []
+//       }
 //       colleges: {
 //         Row: {
 //           created_at: string
@@ -640,3 +693,4 @@ export const Constants = {
 //     },
 //   },
 // } as const
+

@@ -4,16 +4,17 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, FileCheck, BarChart3, ShieldCheck, UserCheck } from "lucide-react";
+import { Loader2, FileCheck, BarChart3, ShieldCheck, UserCheck, FolderOpen } from "lucide-react";
 import AdminStats from "@/components/admin/AdminStats";
-import AdminLeaderboard from "@/components/admin/AdminLeaderboard";
+import AdminProjects from "@/components/admin/AdminProjects";
 import AdminSubmissions from "@/components/admin/AdminSubmissions";
 import AdminRequests from "@/components/admin/AdminRequests";
-import { isHeadAdmin } from "@/lib/constants";
+
+const HEAD_ADMIN_EMAIL = "agoel2_be23@thapar.edu";
 
 export default function AdminDashboard() {
   const { user, profile, loading: authLoading } = useAuth();
-  const headAdmin = isHeadAdmin(profile?.email);
+  const isHeadAdmin = profile?.email === HEAD_ADMIN_EMAIL;
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
@@ -24,11 +25,11 @@ export default function AdminDashboard() {
       return;
     }
     supabase
-      .from("user_roles")
+      .from("user_roles" as any)
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         setIsAdmin(data && data.length > 0);
       });
   }, [user, authLoading, navigate]);
@@ -59,17 +60,17 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="stats" className="space-y-6">
-        <TabsList className={`grid w-full ${headAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${isHeadAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" /> Stats
           </TabsTrigger>
-          <TabsTrigger value="leaderboard" className="gap-2">
-            <Users className="h-4 w-4" /> Leaderboard
+          <TabsTrigger value="projects" className="gap-2">
+            <FolderOpen className="h-4 w-4" /> Projects
           </TabsTrigger>
           <TabsTrigger value="submissions" className="gap-2">
             <FileCheck className="h-4 w-4" /> Submissions
           </TabsTrigger>
-          {headAdmin && (
+          {isHeadAdmin && (
             <TabsTrigger value="requests" className="gap-2">
               <UserCheck className="h-4 w-4" /> Requests
             </TabsTrigger>
@@ -79,13 +80,13 @@ export default function AdminDashboard() {
         <TabsContent value="stats">
           <AdminStats />
         </TabsContent>
-        <TabsContent value="leaderboard">
-          <AdminLeaderboard />
+        <TabsContent value="projects">
+          <AdminProjects />
         </TabsContent>
         <TabsContent value="submissions">
           <AdminSubmissions />
         </TabsContent>
-        {headAdmin && (
+        {isHeadAdmin && (
           <TabsContent value="requests">
             <AdminRequests />
           </TabsContent>

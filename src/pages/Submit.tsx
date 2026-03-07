@@ -15,6 +15,7 @@ export default function Submit() {
   const navigate = useNavigate();
   const [courseraLink, setCourseraLink] = useState("");
   const [linkedinLink, setLinkedinLink] = useState("");
+  const [projectLink, setProjectLink] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [verified, setVerified] = useState(false);
@@ -22,17 +23,23 @@ export default function Submit() {
   const [verifiedSubmissionId, setVerifiedSubmissionId] = useState<string | null>(null);
 
   const linksValid =
-    courseraLink.includes("coursera.org") && linkedinLink.includes("linkedin.com");
+    courseraLink.includes("coursera.org") &&
+    linkedinLink.includes("linkedin.com") &&
+    projectLink.includes("coursera.org");
 
   const handleVerify = async () => {
     if (!user || !profile) return;
 
     if (!courseraLink.includes("coursera.org")) {
-      toast.error("Please enter a valid Coursera link");
+      toast.error("Please enter a valid Coursera certificate link");
       return;
     }
     if (!linkedinLink.includes("linkedin.com")) {
       toast.error("Please enter a valid LinkedIn link");
+      return;
+    }
+    if (!projectLink.includes("coursera.org")) {
+      toast.error("Please enter a valid Coursera project link");
       return;
     }
 
@@ -42,7 +49,6 @@ export default function Submit() {
     setVerifiedSubmissionId(null);
 
     try {
-      // Check duplicate
       const { data: existing } = await supabase
         .from("submissions")
         .select("id")
@@ -57,7 +63,6 @@ export default function Submit() {
         return;
       }
 
-      // Insert as pending
       const { data: submission, error } = await supabase
         .from("submissions")
         .insert({
@@ -65,13 +70,13 @@ export default function Submit() {
           college_id: profile.college_id,
           coursera_link: courseraLink.trim(),
           linkedin_link: linkedinLink.trim(),
-        })
+          project_link: projectLink.trim(),
+        } as any)
         .select()
         .single();
 
       if (error) throw error;
 
-      // Run verification synchronously
       const { data: result, error: fnError } = await supabase.functions.invoke(
         "verify-submission",
         { body: { submission_id: submission.id } }
@@ -84,7 +89,6 @@ export default function Submit() {
         setVerifiedSubmissionId(submission.id);
         setVerifyError("");
       } else {
-        // Delete the failed submission so they can retry
         await supabase.from("submissions").delete().eq("id", submission.id);
         setVerifyError(
           "Verification failed — name on certificate/LinkedIn does not match your profile, or the certificate could not be read. Please check your links and try again."
@@ -106,6 +110,7 @@ export default function Submit() {
       toast.success("Submission confirmed!");
       setCourseraLink("");
       setLinkedinLink("");
+      setProjectLink("");
       setVerified(false);
       setVerifiedSubmissionId(null);
       navigate("/my-submissions");
@@ -116,7 +121,6 @@ export default function Submit() {
 
   const handleLinkChange = (setter: (v: string) => void, value: string) => {
     setter(value);
-    // Reset verification state when links change
     setVerified(false);
     setVerifyError("");
     setVerifiedSubmissionId(null);
@@ -130,7 +134,7 @@ export default function Submit() {
             <Send className="h-5 w-5" /> Submit Project
           </CardTitle>
           <CardDescription>
-            Paste your Coursera certificate link and LinkedIn post link. Verify first, then submit.
+            Paste your Coursera certificate link, project link, and LinkedIn post link. Verify first, then submit.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -142,6 +146,17 @@ export default function Submit() {
                 value={courseraLink}
                 onChange={(e) => handleLinkChange(setCourseraLink, e.target.value)}
                 placeholder="https://www.coursera.org/account/accomplishments/..."
+                required
+                disabled={verified}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project">Coursera Project Link</Label>
+              <Input
+                id="project"
+                value={projectLink}
+                onChange={(e) => handleLinkChange(setProjectLink, e.target.value)}
+                placeholder="https://www.coursera.org/projects/introduction-data-analysis-microsoft-excel"
                 required
                 disabled={verified}
               />
@@ -209,20 +224,27 @@ export default function Submit() {
 // import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
 // import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Alert, AlertDescription } from "@/components/ui/alert";
 // import { useAuth } from "@/lib/auth";
 // import { supabase } from "@/integrations/supabase/client";
 // import { toast } from "sonner";
-// import { Send, Loader2 } from "lucide-react";
+// import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck } from "lucide-react";
 
 // export default function Submit() {
 //   const { user, profile } = useAuth();
 //   const navigate = useNavigate();
 //   const [courseraLink, setCourseraLink] = useState("");
 //   const [linkedinLink, setLinkedinLink] = useState("");
-//   const [loading, setLoading] = useState(false);
+//   const [verifying, setVerifying] = useState(false);
+//   const [submitting, setSubmitting] = useState(false);
+//   const [verified, setVerified] = useState(false);
+//   const [verifyError, setVerifyError] = useState("");
+//   const [verifiedSubmissionId, setVerifiedSubmissionId] = useState<string | null>(null);
 
-//   const handleSubmit = async (e: React.FormEvent) => {
-//     e.preventDefault();
+//   const linksValid =
+//     courseraLink.includes("coursera.org") && linkedinLink.includes("linkedin.com");
+
+//   const handleVerify = async () => {
 //     if (!user || !profile) return;
 
 //     if (!courseraLink.includes("coursera.org")) {
@@ -234,9 +256,13 @@ export default function Submit() {
 //       return;
 //     }
 
-//     setLoading(true);
+//     setVerifying(true);
+//     setVerifyError("");
+//     setVerified(false);
+//     setVerifiedSubmissionId(null);
+
 //     try {
-//       // Check if this coursera link already has a correct submission
+//       // Check duplicate
 //       const { data: existing } = await supabase
 //         .from("submissions")
 //         .select("id")
@@ -246,39 +272,74 @@ export default function Submit() {
 //         .limit(1);
 
 //       if (existing && existing.length > 0) {
-//         toast.error("This course has already been submitted and verified. You cannot submit it again.");
-//         setLoading(false);
+//         setVerifyError("This course has already been submitted and verified.");
+//         setVerifying(false);
 //         return;
 //       }
 
-//       // Insert submission
-//       const { data: submission, error } = await supabase.from("submissions").insert({
-//         user_id: user.id,
-//         college_id: profile.college_id,
-//         coursera_link: courseraLink.trim(),
-//         linkedin_link: linkedinLink.trim(),
-//       }).select().single();
+//       // Insert as pending
+//       const { data: submission, error } = await supabase
+//         .from("submissions")
+//         .insert({
+//           user_id: user.id,
+//           college_id: profile.college_id,
+//           coursera_link: courseraLink.trim(),
+//           linkedin_link: linkedinLink.trim(),
+//         })
+//         .select()
+//         .single();
 
 //       if (error) throw error;
 
-//       // Trigger verification
-//       const { error: invokeError } = await supabase.functions.invoke("verify-submission", {
-//         body: { submission_id: submission.id },
-//       });
-//       if (invokeError) {
-//         console.error("Verification invoke failed:", invokeError);
-//         toast.warning("Submission saved, but verification could not be started. It may run automatically shortly.");
+//       // Run verification synchronously
+//       const { data: result, error: fnError } = await supabase.functions.invoke(
+//         "verify-submission",
+//         { body: { submission_id: submission.id } }
+//       );
+
+//       if (fnError) throw fnError;
+
+//       if (result?.status === "correct") {
+//         setVerified(true);
+//         setVerifiedSubmissionId(submission.id);
+//         setVerifyError("");
 //       } else {
-//         toast.success("Submission received! Verification in progress.");
+//         // Delete the failed submission so they can retry
+//         await supabase.from("submissions").delete().eq("id", submission.id);
+//         setVerifyError(
+//           "Verification failed — name on certificate/LinkedIn does not match your profile, or the certificate could not be read. Please check your links and try again."
+//         );
 //       }
+//     } catch (err: any) {
+//       setVerifyError(err.message || "Verification failed");
+//     } finally {
+//       setVerifying(false);
+//     }
+//   };
+
+//   const handleSubmit = async (e: React.FormEvent) => {
+//     e.preventDefault();
+//     if (!verified || !verifiedSubmissionId) return;
+
+//     setSubmitting(true);
+//     try {
+//       toast.success("Submission confirmed!");
 //       setCourseraLink("");
 //       setLinkedinLink("");
+//       setVerified(false);
+//       setVerifiedSubmissionId(null);
 //       navigate("/my-submissions");
-//     } catch (err: any) {
-//       toast.error(err.message || "Failed to submit");
 //     } finally {
-//       setLoading(false);
+//       setSubmitting(false);
 //     }
+//   };
+
+//   const handleLinkChange = (setter: (v: string) => void, value: string) => {
+//     setter(value);
+//     // Reset verification state when links change
+//     setVerified(false);
+//     setVerifyError("");
+//     setVerifiedSubmissionId(null);
 //   };
 
 //   return (
@@ -289,7 +350,7 @@ export default function Submit() {
 //             <Send className="h-5 w-5" /> Submit Project
 //           </CardTitle>
 //           <CardDescription>
-//             Paste your Coursera certificate link and LinkedIn post link for verification.
+//             Paste your Coursera certificate link and LinkedIn post link. Verify first, then submit.
 //           </CardDescription>
 //         </CardHeader>
 //         <CardContent>
@@ -299,9 +360,10 @@ export default function Submit() {
 //               <Input
 //                 id="coursera"
 //                 value={courseraLink}
-//                 onChange={(e) => setCourseraLink(e.target.value)}
+//                 onChange={(e) => handleLinkChange(setCourseraLink, e.target.value)}
 //                 placeholder="https://www.coursera.org/account/accomplishments/..."
 //                 required
+//                 disabled={verified}
 //               />
 //             </div>
 //             <div className="space-y-2">
@@ -309,17 +371,55 @@ export default function Submit() {
 //               <Input
 //                 id="linkedin"
 //                 value={linkedinLink}
-//                 onChange={(e) => setLinkedinLink(e.target.value)}
+//                 onChange={(e) => handleLinkChange(setLinkedinLink, e.target.value)}
 //                 placeholder="https://www.linkedin.com/posts/..."
 //                 required
+//                 disabled={verified}
 //               />
 //             </div>
-//             <Button type="submit" className="w-full" disabled={loading}>
-//               {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</> : "Submit for Verification"}
-//             </Button>
+
+//             {verifyError && (
+//               <Alert variant="destructive">
+//                 <XCircle className="h-4 w-4" />
+//                 <AlertDescription>{verifyError}</AlertDescription>
+//               </Alert>
+//             )}
+
+//             {verified && (
+//               <Alert>
+//                 <CheckCircle2 className="h-4 w-4 text-primary" />
+//                 <AlertDescription className="font-medium">
+//                   Verification passed! You can now submit.
+//                 </AlertDescription>
+//               </Alert>
+//             )}
+
+//             {!verified ? (
+//               <Button
+//                 type="button"
+//                 className="w-full"
+//                 disabled={verifying || !linksValid}
+//                 onClick={handleVerify}
+//               >
+//                 {verifying ? (
+//                   <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</>
+//                 ) : (
+//                   <><ShieldCheck className="h-4 w-4" /> Verify</>
+//                 )}
+//               </Button>
+//             ) : (
+//               <Button type="submit" className="w-full" disabled={submitting}>
+//                 {submitting ? (
+//                   <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
+//                 ) : (
+//                   <><Send className="h-4 w-4" /> Submit</>
+//                 )}
+//               </Button>
+//             )}
 //           </form>
 //         </CardContent>
 //       </Card>
 //     </div>
 //   );
 // }
+

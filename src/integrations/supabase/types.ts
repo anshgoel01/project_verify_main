@@ -143,6 +143,7 @@ export type Database = {
           level: string | null
           linkedin_link: string
           linkedin_username: string | null
+          project_link: string | null
           status: string
           student_match: boolean | null
           user_id: string
@@ -160,6 +161,7 @@ export type Database = {
           level?: string | null
           linkedin_link: string
           linkedin_username?: string | null
+          project_link?: string | null
           status?: string
           student_match?: boolean | null
           user_id: string
@@ -177,6 +179,7 @@ export type Database = {
           level?: string | null
           linkedin_link?: string
           linkedin_username?: string | null
+          project_link?: string | null
           status?: string
           student_match?: boolean | null
           user_id?: string
@@ -469,6 +472,30 @@ export const Constants = {
 //           },
 //         ]
 //       }
+//       projects: {
+//         Row: {
+//           course_name: string
+//           created_at: string
+//           id: string
+//           level: string
+//           weight: number
+//         }
+//         Insert: {
+//           course_name: string
+//           created_at?: string
+//           id?: string
+//           level?: string
+//           weight?: number
+//         }
+//         Update: {
+//           course_name?: string
+//           created_at?: string
+//           id?: string
+//           level?: string
+//           weight?: number
+//         }
+//         Relationships: []
+//       }
 //       submissions: {
 //         Row: {
 //           college_id: string
@@ -479,11 +506,13 @@ export const Constants = {
 //           created_at: string
 //           error_message: string | null
 //           id: string
+//           level: string | null
 //           linkedin_link: string
 //           linkedin_username: string | null
 //           status: string
 //           student_match: boolean | null
 //           user_id: string
+//           weight: number | null
 //         }
 //         Insert: {
 //           college_id: string
@@ -494,11 +523,13 @@ export const Constants = {
 //           created_at?: string
 //           error_message?: string | null
 //           id?: string
+//           level?: string | null
 //           linkedin_link: string
 //           linkedin_username?: string | null
 //           status?: string
 //           student_match?: boolean | null
 //           user_id: string
+//           weight?: number | null
 //         }
 //         Update: {
 //           college_id?: string
@@ -509,11 +540,13 @@ export const Constants = {
 //           created_at?: string
 //           error_message?: string | null
 //           id?: string
+//           level?: string | null
 //           linkedin_link?: string
 //           linkedin_username?: string | null
 //           status?: string
 //           student_match?: boolean | null
 //           user_id?: string
+//           weight?: number | null
 //         }
 //         Relationships: [
 //           {
@@ -693,4 +726,5 @@ export const Constants = {
 //     },
 //   },
 // } as const
+
 

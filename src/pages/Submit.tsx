@@ -134,9 +134,6 @@ export default function Submit() {
           <CardTitle className="flex items-center gap-2">
             <Send className="h-5 w-5" /> Submit Project
           </CardTitle>
-          <CardDescription>
-            Paste your Coursera certificate link, project link, and LinkedIn post link. Verify first, then submit.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

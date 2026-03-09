@@ -128,7 +128,7 @@ export default function AdminLeaderboard() {
                     <TableCell className="text-muted-foreground">{e.college_name}</TableCell>
                     <TableCell className="text-center">{e.total_submissions}</TableCell>
                     <TableCell className="text-center">{e.correct_submissions}</TableCell>
-                    <TableCell className="text-center font-bold text-primary">{e.score}</TableCell>
+                    <TableCell className="text-center font-bold text-primary">{(Number(e.score) * 100).toFixed(2)}</TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {format(new Date(e.updated_at), "MMM d, yyyy")}
                     </TableCell>

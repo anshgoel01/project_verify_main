@@ -45,7 +45,7 @@ export default function Leaderboard() {
     const { data } = await query;
     if (data) {
       setEntries(
-        data.map((d: { colleges?: { name?: string } }) => ({
+        data.map((d: any) => ({
           ...d,
           college_name: d.colleges?.name || "Unknown",
         }))
@@ -108,7 +108,7 @@ export default function Leaderboard() {
                     <TableHead>College</TableHead>
                     <TableHead className="text-center">Submissions</TableHead>
                     <TableHead className="text-center">Correct</TableHead>
-                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead className="text-center">Score (weighted)</TableHead>
                     <TableHead>Last Activity</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -120,7 +120,7 @@ export default function Leaderboard() {
                       <TableCell className="text-muted-foreground">{e.college_name}</TableCell>
                       <TableCell className="text-center">{e.total_submissions}</TableCell>
                       <TableCell className="text-center">{e.correct_submissions}</TableCell>
-                      <TableCell className="text-center font-bold text-primary">{e.score}</TableCell>
+                      <TableCell className="text-center font-bold text-primary">{Number(e.score).toFixed(2)}</TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {format(new Date(e.updated_at), "MMM d, yyyy")}
                       </TableCell>

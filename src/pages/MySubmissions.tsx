@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StatusBadge from "@/components/StatusBadge";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type Submission = {
   id: string;
@@ -19,12 +20,14 @@ type Submission = {
   status: string;
   error_message: string | null;
   created_at: string;
+  level: string | null;
 };
 
 export default function MySubmissions() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const fetchSubmissions = async () => {
     if (!user) return;
@@ -50,13 +53,26 @@ export default function MySubmissions() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Group submissions by course
-  const groupedByCourse = submissions.reduce<Record<string, Submission[]>>((acc, s) => {
-    const course = s.coursera_course || "Unknown Course";
-    if (!acc[course]) acc[course] = [];
-    acc[course].push(s);
+  const levelOrder = ["Beginner", "Intermediate", "Advanced", "Mixed"];
+  const levelColors: Record<string, string> = {
+    Beginner: "bg-green-500",
+    Intermediate: "bg-yellow-500",
+    Advanced: "bg-red-500",
+    Mixed: "bg-purple-500",
+  };
+
+  const groupedByLevel = submissions.reduce<Record<string, Submission[]>>((acc, s) => {
+    const level = s.level || "Mixed";
+    if (!acc[level]) acc[level] = [];
+    acc[level].push(s);
     return acc;
   }, {});
+
+  useEffect(() => {
+    const defaults: Record<string, boolean> = {};
+    levelOrder.forEach((l) => { if (groupedByLevel[l]) defaults[l] = true; });
+    setOpenGroups(defaults);
+  }, [submissions.length]);
 
   if (loading) {
     return (
@@ -77,50 +93,76 @@ export default function MySubmissions() {
           </CardContent>
         </Card>
       ) : (
-        Object.entries(groupedByCourse).map(([course, subs]) => (
-          <Card key={course}>
-            <CardHeader>
-              <CardTitle className="text-lg">{course}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Student Match</TableHead>
-                      <TableHead>Course Match</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Links</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {subs.map((s, i) => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">{subs.length - i}</TableCell>
-                        <TableCell className="whitespace-nowrap">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
-                        <TableCell>{s.student_match === null ? "—" : s.student_match ? "✅ Yes" : "❌ No"}</TableCell>
-                        <TableCell>{s.course_match === null ? "—" : s.course_match ? "✅ Yes" : "❌ No"}</TableCell>
-                        <TableCell><StatusBadge status={s.status} /></TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <a href={s.coursera_link} target="_blank" rel="noopener" className="text-primary hover:underline">
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                            <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-primary hover:underline">
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        ))
+        levelOrder
+          .filter((level) => groupedByLevel[level]?.length)
+          .map((level) => {
+            const subs = groupedByLevel[level];
+            return (
+              <Collapsible
+                key={level}
+                open={openGroups[level] ?? true}
+                onOpenChange={(open) => setOpenGroups((prev) => ({ ...prev, [level]: open }))}
+              >
+                <Card>
+                  <CollapsibleTrigger asChild>
+                    <CardHeader className="cursor-pointer select-none hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className={`h-2.5 w-2.5 rounded-full ${levelColors[level]}`} />
+                          <CardTitle className="text-lg">{level}</CardTitle>
+                          <span className="text-sm text-muted-foreground">({subs.length})</span>
+                        </div>
+                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${openGroups[level] ? "rotate-180" : ""}`} />
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Course</TableHead>
+                              <TableHead>Coursera Name</TableHead>
+                              <TableHead>Student Match</TableHead>
+                              <TableHead>Course Match</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Links</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {subs.map((s, i) => (
+                              <TableRow key={s.id}>
+                                <TableCell className="font-medium">{subs.length - i}</TableCell>
+                                <TableCell className="whitespace-nowrap">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
+                                <TableCell className="max-w-[200px] truncate">{s.coursera_course || "—"}</TableCell>
+                                <TableCell>{s.coursera_name || "—"}</TableCell>
+                                <TableCell>{s.student_match === null ? "—" : s.student_match ? "✅ Yes" : "❌ No"}</TableCell>
+                                <TableCell>{s.course_match === null ? "—" : s.course_match ? "✅ Yes" : "❌ No"}</TableCell>
+                                <TableCell><StatusBadge status={s.status} /></TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <a href={s.coursera_link} target="_blank" rel="noopener" className="text-primary hover:underline">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                    <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-primary hover:underline">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            );
+          })
       )}
     </div>
   );

@@ -6,22 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Trophy, CheckCircle, Send, Calendar, Pencil, Save, X, Lock, Eye, EyeOff, AlertTriangle, Trash2 } from "lucide-react";
+import { User, Trophy, CheckCircle, Send, Calendar, Pencil, Save, X, Lock, Eye, EyeOff, LogOut } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [collegeName, setCollegeName] = useState("");
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -31,8 +23,6 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
-
-
 
   useEffect(() => {
     if (profile?.college_id) {
@@ -80,7 +70,6 @@ export default function Profile() {
 
   if (!profile) return null;
 
-  // Hide submission stats for regular admins (not head admin)
   const showStats = !isAdmin || headAdmin;
 
   const stats = [
@@ -150,9 +139,18 @@ export default function Profile() {
               ))}
             </div>
           )}
+
+          <Button
+            variant="outline"
+            className="w-full gap-2 text-muted-foreground hover:text-destructive hover:border-destructive"
+            onClick={async () => { await signOut(); navigate("/"); }}
+          >
+            <LogOut className="h-4 w-4" /> Logout
+          </Button>
         </CardContent>
       </Card>
 
+      {/* Change Password Card */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -220,5 +218,3 @@ export default function Profile() {
     </div>
   );
 }
-
-

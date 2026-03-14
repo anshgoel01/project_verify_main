@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import StatusBadge from "@/components/StatusBadge";
+
 import { Loader2, FileCheck, ExternalLink, Trash2, Download, Lock, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -44,7 +44,7 @@ export default function AdminSubmissions() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
   const [selectedCollege, setSelectedCollege] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -52,7 +52,7 @@ export default function AdminSubmissions() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["coursera_link", "linkedin_link", "marks"]);
-  const prevFiltersRef = useRef({ college: selectedCollege, status: selectedStatus });
+  const prevFiltersRef = useRef({ college: selectedCollege });
 
   const toggleColumn = (key: string) => {
     setSelectedColumns((prev) =>
@@ -69,10 +69,9 @@ export default function AdminSubmissions() {
   const fetchSubmissions = useCallback(async (pageOverride?: number) => {
     setLoading(true);
     const filtersChanged =
-      prevFiltersRef.current.college !== selectedCollege ||
-      prevFiltersRef.current.status !== selectedStatus;
+      prevFiltersRef.current.college !== selectedCollege;
     if (filtersChanged) {
-      prevFiltersRef.current = { college: selectedCollege, status: selectedStatus };
+      prevFiltersRef.current = { college: selectedCollege };
       setPage(1);
     }
     const pageToFetch = pageOverride ?? (filtersChanged ? 1 : page);
@@ -80,7 +79,6 @@ export default function AdminSubmissions() {
     const { data: { session } } = await supabase.auth.getSession();
     const params = new URLSearchParams();
     if (selectedCollege !== "all") params.set("college_id", selectedCollege);
-    if (selectedStatus !== "all") params.set("status", selectedStatus);
     params.set("page", String(pageToFetch));
     params.set("limit", "50");
 
@@ -96,7 +94,7 @@ export default function AdminSubmissions() {
       setTotalPages(Array.isArray(json) ? 1 : (json.totalPages ?? 1));
     }
     setLoading(false);
-  }, [selectedCollege, selectedStatus, page]);
+  }, [selectedCollege, page]);
 
   useEffect(() => { fetchSubmissions(); }, [fetchSubmissions]);
 
@@ -213,19 +211,7 @@ export default function AdminSubmissions() {
               {colleges.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="correct">Correct</SelectItem>
-              <SelectItem value="wrong">Wrong</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="skipped">Skipped</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
+
         </div>
       </CardHeader>
 
@@ -245,7 +231,7 @@ export default function AdminSubmissions() {
                   <TableHead>Roll No</TableHead>
                   <TableHead>College</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
+
                   <TableHead>Links</TableHead>
                   <TableHead className="w-16">Action</TableHead>
                 </TableRow>
@@ -259,7 +245,7 @@ export default function AdminSubmissions() {
                     <TableCell className="whitespace-nowrap text-sm">
                       {format(new Date(s.created_at), "MMM d, HH:mm")}
                     </TableCell>
-                    <TableCell><StatusBadge status={s.status} /></TableCell>
+
                     <TableCell>
                       <div className="flex gap-2">
                         <a href={s.coursera_link} target="_blank" rel="noopener" className="text-primary hover:underline">

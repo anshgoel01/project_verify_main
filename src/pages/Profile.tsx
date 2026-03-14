@@ -74,7 +74,7 @@ export default function Profile() {
 
   const stats = [
     { icon: Send, label: "Total Submissions", value: profile.total_submissions },
-    { icon: CheckCircle, label: "Correct", value: profile.correct_submissions },
+    // { icon: CheckCircle, label: "Correct", value: profile.correct_submissions },
     { icon: Trophy, label: "Score", value: profile.score },
   ];
 
@@ -129,7 +129,7 @@ export default function Profile() {
           )}
 
           {showStats && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {stats.map((s) => (
                 <div key={s.label} className="rounded-lg border bg-muted/50 p-4 text-center">
                   <s.icon className="h-5 w-5 mx-auto text-primary mb-1" />

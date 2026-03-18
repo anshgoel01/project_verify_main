@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trophy, Medal, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Trophy, Medal, Loader2, MapPin } from "lucide-react";
 import { format } from "date-fns";
 
 type LeaderboardEntry = {
@@ -12,16 +15,18 @@ type LeaderboardEntry = {
   college_name: string;
   college_id: string;
   total_submissions: number;
-  correct_submissions: number;
   score: number;
   updated_at: string;
 };
 
 export default function Leaderboard() {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
   const [selectedCollege, setSelectedCollege] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
   useEffect(() => {
     supabase.from("colleges").select("id, name").order("name").then(({ data }) => {
@@ -33,7 +38,7 @@ export default function Leaderboard() {
     setLoading(true);
     let query = supabase
       .from("profiles")
-      .select("user_id, full_name, college_id, total_submissions, correct_submissions, score, updated_at, colleges(name)")
+      .select("user_id, full_name, college_id, total_submissions, score, updated_at, colleges(name)")
       .gt("total_submissions", 0)
       .order("score", { ascending: false })
       .order("updated_at", { ascending: true });
@@ -67,6 +72,19 @@ export default function Leaderboard() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchLeaderboard]);
 
+  const myRankIndex = user ? entries.findIndex((e) => e.user_id === user.id) : -1;
+  const myRank = myRankIndex >= 0 ? myRankIndex + 1 : null;
+
+  const handleScrollToMyRank = () => {
+    if (!user || myRankIndex < 0) return;
+    const row = rowRefs.current[user.id];
+    if (row) {
+      row.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedUserId(user.id);
+      setTimeout(() => setHighlightedUserId(null), 2000);
+    }
+  };
+
   const rankIcon = (rank: number) => {
     if (rank === 1) return <Trophy className="h-5 w-5 text-yellow-500" />;
     if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
@@ -81,17 +99,20 @@ export default function Leaderboard() {
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-primary" /> Leaderboard
           </CardTitle>
-          <Select value={selectedCollege} onValueChange={setSelectedCollege}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Filter by college" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Colleges</SelectItem>
-              {colleges.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            {user && myRank && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScrollToMyRank}
+                className="gap-2"
+              >
+                <MapPin className="h-4 w-4" />
+                My Rank
+                <Badge variant="secondary" className="ml-1">#{myRank}</Badge>
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -107,19 +128,27 @@ export default function Leaderboard() {
                     <TableHead>Student</TableHead>
                     <TableHead>College</TableHead>
                     <TableHead className="text-center">Submissions</TableHead>
-                    <TableHead className="text-center">Correct</TableHead>
-                    <TableHead className="text-center">Score (weighted)</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
                     <TableHead>Last Activity</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {entries.map((e, i) => (
-                    <TableRow key={e.user_id}>
+                    <TableRow
+                      key={e.user_id}
+                      ref={(el) => { rowRefs.current[e.user_id] = el; }}
+                      className={
+                        highlightedUserId === e.user_id
+                          ? "animate-pulse bg-primary/15 transition-colors duration-700"
+                          : user?.id === e.user_id
+                            ? "bg-primary/5"
+                            : ""
+                      }
+                    >
                       <TableCell className="text-center">{rankIcon(i + 1)}</TableCell>
                       <TableCell className="font-medium">{e.full_name}</TableCell>
                       <TableCell className="text-muted-foreground">{e.college_name}</TableCell>
                       <TableCell className="text-center">{e.total_submissions}</TableCell>
-                      <TableCell className="text-center">{e.correct_submissions}</TableCell>
                       <TableCell className="text-center font-bold text-primary">{(Number(e.score) * 100).toFixed(2)}</TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {format(new Date(e.updated_at), "MMM d, yyyy")}

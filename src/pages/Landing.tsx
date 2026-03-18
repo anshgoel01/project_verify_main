@@ -164,7 +164,6 @@ export default function Landing() {
           </div>
 
           {/* Right — Dashboard Preview */}
-          {/* Right — Dashboard Preview */}
           <motion.div custom={2} initial="hidden" animate="visible" variants={heroVariants}
             className="hidden md:block">
             <div className="rounded-lg border bg-card overflow-hidden shadow-2xl shadow-primary/10 ring-2 ring-primary/20">
@@ -187,7 +186,7 @@ export default function Landing() {
       </section>
 
       {/* ─── LIVE STATS ─── */}
-      <section className="border-y bg-gradient-to-r from-primary/5 via-background to-primary/5 py-10 md:py-14">
+      <section className="border-y bg-gradient-to-r from-primary/5 via-background to-primary/5 py-2 md:py-6">
         <SectionBadge label="By The Numbers" />
         <div className="container grid grid-cols-1 sm:grid-cols-3 gap-6 text-center mt-6">
           <div ref={students.ref} className="space-y-2">

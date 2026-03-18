@@ -1,4 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-nocheck
+import { createClient } from "supabase";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -268,17 +269,17 @@ function captionMentionsCourse(caption: string, courseName: string): boolean {
   if (!caption || !courseName) return false;
   const normCaption = normalizeText(caption);
   const normCourse = normalizeText(courseName);
-  
+
   // Direct substring check
   if (normCaption.includes(normCourse)) return true;
-  
+
   // Check individual significant words (3+ chars) from the course name
   const courseWords = normCourse.split(" ").filter(w => w.length >= 3);
   if (courseWords.length === 0) return false;
-  
+
   const matchingWords = courseWords.filter(w => normCaption.includes(w));
   const matchRatio = matchingWords.length / courseWords.length;
-  
+
   console.log(`Caption course match: ${matchingWords.length}/${courseWords.length} words (${(matchRatio * 100).toFixed(0)}%), threshold 60%`);
   return matchRatio >= 0.6;
 }
@@ -334,14 +335,31 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   // Check if LinkedIn username matches the student profile name
   const linkedinMatchesUser = linkedinUsername ? namesMatch(userName, linkedinUsername, 60) : false;
 
-  if (courseraName) {
-    const courseraMatchesUser = namesMatch(userName, courseraName);
-    const courseraMatchesLinkedin = linkedinUsername ? namesMatch(courseraName, linkedinUsername, 60) : false;
-    studentMatch = courseraMatchesUser && (linkedinMatchesUser || courseraMatchesLinkedin);
-  } else {
-    studentMatch = linkedinMatchesUser;
-    console.log("Coursera name not found, falling back to LinkedIn match:", linkedinMatchesUser);
+  // if (courseraName) {
+  //   const courseraMatchesUser = namesMatch(userName, courseraName);
+  //   const courseraMatchesLinkedin = linkedinUsername ? namesMatch(courseraName, linkedinUsername, 60) : false;
+  //   studentMatch = courseraMatchesUser && (linkedinMatchesUser || courseraMatchesLinkedin);
+  // } else {
+  //   studentMatch = linkedinMatchesUser;
+  //   console.log("Coursera name not found, falling back to LinkedIn match:", linkedinMatchesUser);
+  // }
+  if (!courseraName) {
+    return {
+      coursera_name: null,
+      linkedin_username: linkedinUsername || null,
+      coursera_course: courseraCourse || null,
+      student_match: false,
+      course_match: false,
+      level: detectedLevel,
+      weight: LEVEL_WEIGHTS[detectedLevel] || 0.25,
+      status: "wrong",
+      error_message: "Could not read your certificate. Please use the direct certificate link (coursera.org/account/accomplishments/verify/...) instead of a share link.",
+    };
   }
+
+  const courseraMatchesUser = namesMatch(userName, courseraName);
+  const courseraMatchesLinkedin = linkedinUsername ? namesMatch(courseraName, linkedinUsername, 60) : false;
+  studentMatch = courseraMatchesUser && (linkedinMatchesUser || courseraMatchesLinkedin);
 
   courseMatch = !!courseraCourse && courseraCourse.length > 3;
 
@@ -349,7 +367,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   let projectNameMatch = true;
   if (courseraCourse && projectCourse && courseraCourse.length > 3 && projectCourse.length > 3) {
     projectNameMatch = namesMatch(courseraCourse, projectCourse, 50);
-    console.log("Project-certificate course name match:", projectNameMatch, 
+    console.log("Project-certificate course name match:", projectNameMatch,
       `cert="${courseraCourse}" project="${projectCourse}" ratio=${tokenSortRatio(courseraCourse, projectCourse).toFixed(1)}`);
     if (!projectNameMatch) {
       errorMessage = "Project name mismatch — make sure all three links refer to the same course.";

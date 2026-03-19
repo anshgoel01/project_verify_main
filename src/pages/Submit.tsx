@@ -25,10 +25,7 @@ export default function Submit() {
   const [verifiedSubmissionId, setVerifiedSubmissionId] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [helpModal, setHelpModal] = useState<{ title: string; image: string } | null>(null);
-  // const linksValid =
-  //   courseraLink.includes("coursera.org") &&
-  //   linkedinLink.includes("linkedin.com") &&
-  //   projectLink.includes("coursera.org");
+
   const linksValid =
     courseraLink.includes("coursera.org/account/accomplishments/verify/") &&
     linkedinLink.includes("linkedin.com") &&
@@ -37,7 +34,7 @@ export default function Submit() {
   const handleVerify = async () => {
     if (!user || !profile) return;
 
-    if (!courseraLink.includes("coursera.org")) {
+    if (!courseraLink.includes("coursera.org/account/accomplishments/verify/")) {
       toast.error("Please enter a valid Coursera certificate link");
       return;
     }

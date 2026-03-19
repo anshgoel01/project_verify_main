@@ -56,10 +56,11 @@ export default function AdminProjects() {
         const data: { level: string; weight: number }[] = await res.json();
         const map: Record<string, number> = {};
         for (const row of data) map[row.level] = Number(row.weight);
-        if (Object.keys(map).length > 0) {
-          setLevelWeights(map);
-          setLocalWeights(map);
-        }
+        // if (Object.keys(map).length > 0) {
+        const merged = { ...DEFAULT_WEIGHTS, ...map };
+        setLevelWeights(merged);
+        setLocalWeights(merged);
+        // }
       }
     } catch {
       // fall back to defaults
@@ -74,11 +75,18 @@ export default function AdminProjects() {
       { headers }
     );
     if (res.ok) {
-      const data: Project[] = await res.json();
+      // const data: Project[] = await res.json();
+      // setProjects(data);
+      // const edits: Record<string, { level: string; weight: number }> = {};
+      // for (const p of data) {
+      //   edits[p.id] = { level: p.level || "Beginner", weight: p.weight ?? 0.25 };
+      // }
+      const raw = await res.json();
+      const data: Project[] = raw.map((p: any) => ({ ...p, weight: Number(p.weight) }));
       setProjects(data);
       const edits: Record<string, { level: string; weight: number }> = {};
       for (const p of data) {
-        edits[p.id] = { level: p.level || "Beginner", weight: p.weight ?? 0.25 };
+        edits[p.id] = { level: p.level || "Beginner", weight: Number(p.weight) ?? 0.25 };
       }
       setLocalEdits(edits);
       setSaved({});
@@ -121,7 +129,8 @@ export default function AdminProjects() {
     const p = projects.find((proj) => proj.id === id);
     const edit = localEdits[id];
     if (!p || !edit) return false;
-    return edit.level !== p.level || Math.abs(edit.weight - p.weight) > 0.001;
+    // return edit.level !== p.level || Math.abs(edit.weight - p.weight) > 0.001;
+    return edit.level !== p.level || Math.abs(edit.weight - Number(p.weight)) > 0.001;
   };
 
   const handleLevelChange = (id: string, newLevel: string) => {

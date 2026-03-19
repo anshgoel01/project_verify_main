@@ -288,12 +288,21 @@ function timeoutPromise(ms: number): Promise<never> {
   return new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms));
 }
 
+// const LEVEL_WEIGHTS: Record<string, number> = {
+//   Beginner: 0.25,
+//   Intermediate: 0.50,
+//   Advanced: 0.75,
+//   Mixed: 0.60,
+// };
+const { data: weightRows } = await supabase
+  .from("default_weights")
+  .select("level, weight");
 const LEVEL_WEIGHTS: Record<string, number> = {
-  Beginner: 0.25,
-  Intermediate: 0.50,
-  Advanced: 0.75,
-  Mixed: 0.60,
+  Beginner: 0.25, Intermediate: 0.50, Advanced: 0.75, Mixed: 0.60
 };
+for (const row of weightRows || []) {
+  LEVEL_WEIGHTS[row.level] = Number(row.weight);
+}
 
 async function verifySubmission(supabase: any, submission: any, userName: string): Promise<{
   coursera_name: string | null;

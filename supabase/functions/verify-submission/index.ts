@@ -91,11 +91,11 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
     let level = "Beginner";
 
     // Strategy 1: "Completed by [Name]" pattern
-    const completedByMatch = html.match(/Completed\s+by\s+([^<\n]+)/i);
-    if (completedByMatch) {
-      name = normalizeText(completedByMatch[1]);
-      console.log("Found name via 'Completed by':", name);
-    }
+    // const completedByMatch = html.match(/Completed\s+by\s+([^<\n]+)/i);
+    // if (completedByMatch) {
+    //   name = normalizeText(completedByMatch[1]);
+    //   console.log("Found name via 'Completed by':", name);
+    // }
 
     // // Strategy 2: og:description meta tag
     // if (!name) {
@@ -113,18 +113,18 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
     // }
 
     // Strategy 3: JSON-LD structured data
-    if (!name) {
-      const jsonLdMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
-      if (jsonLdMatch) {
-        try {
-          const jsonLd = JSON.parse(jsonLdMatch[1]);
-          if (jsonLd.name) {
-            name = normalizeText(jsonLd.name);
-            console.log("Found name via JSON-LD:", name);
-          }
-        } catch { /* ignore parse errors */ }
-      }
-    }
+    // if (!name) {
+    //   const jsonLdMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
+    //   if (jsonLdMatch) {
+    //     try {
+    //       const jsonLd = JSON.parse(jsonLdMatch[1]);
+    //       if (jsonLd.name) {
+    //         name = normalizeText(jsonLd.name);
+    //         console.log("Found name via JSON-LD:", name);
+    //       }
+    //     } catch { /* ignore parse errors */ }
+    //   }
+    // }
 
     // Strategy 1.5: Extract from certificate image ALT text
     if (!name) {
@@ -136,21 +136,21 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
     }
 
     // Strategy 4: DOM attribute patterns
-    if (!name) {
-      const namePatterns = [
-        /data-e2e="full-name"[^>]*>([^<]+)</i,
-        /class="[^"]*learner-name[^"]*"[^>]*>([^<]+)</i,
-        /Verified\s+by\s+([^<\n]+)/i,
-      ];
-      for (const pattern of namePatterns) {
-        const match = html.match(pattern);
-        if (match) {
-          name = normalizeText(match[1]);
-          console.log("Found name via pattern:", pattern.source, "→", name);
-          break;
-        }
-      }
-    }
+    // if (!name) {
+    //   const namePatterns = [
+    //     /data-e2e="full-name"[^>]*>([^<]+)</i,
+    //     /class="[^"]*learner-name[^"]*"[^>]*>([^<]+)</i,
+    //     /Verified\s+by\s+([^<\n]+)/i,
+    //   ];
+    //   for (const pattern of namePatterns) {
+    //     const match = html.match(pattern);
+    //     if (match) {
+    //       name = normalizeText(match[1]);
+    //       console.log("Found name via pattern:", pattern.source, "→", name);
+    //       break;
+    //     }
+    //   }
+    // }
 
     // Extract course name
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);

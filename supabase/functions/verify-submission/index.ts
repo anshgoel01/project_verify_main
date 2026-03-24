@@ -97,20 +97,20 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
       console.log("Found name via 'Completed by':", name);
     }
 
-    // Strategy 2: og:description meta tag
-    if (!name) {
-      const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-        || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
-      if (ogDescMatch) {
-        const desc = ogDescMatch[1];
-        console.log("og:description:", desc);
-        const earnedMatch = desc.match(/(?:earned|completed|awarded)\s+by\s+(.+?)(?:\.|,|$)/i);
-        if (earnedMatch) {
-          name = normalizeText(earnedMatch[1]);
-          console.log("Found name via og:description:", name);
-        }
-      }
-    }
+    // // Strategy 2: og:description meta tag
+    // if (!name) {
+    //   const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
+    //     || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
+    //   if (ogDescMatch) {
+    //     const desc = ogDescMatch[1];
+    //     console.log("og:description:", desc);
+    //     const earnedMatch = desc.match(/(?:earned|completed|awarded)\s+by\s+(.+?)(?:\.|,|$)/i);
+    //     if (earnedMatch) {
+    //       name = normalizeText(earnedMatch[1]);
+    //       console.log("Found name via og:description:", name);
+    //     }
+    //   }
+    // }
 
     // Strategy 3: JSON-LD structured data
     if (!name) {
@@ -123,6 +123,15 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
             console.log("Found name via JSON-LD:", name);
           }
         } catch { /* ignore parse errors */ }
+      }
+    }
+
+    // Strategy 1.5: Extract from certificate image ALT text
+    if (!name) {
+      const altMatch = html.match(/alt="View certificate for ([^,]+),/i);
+      if (altMatch) {
+        name = normalizeText(altMatch[1]);
+        console.log("Found name via image ALT:", name);
       }
     }
 

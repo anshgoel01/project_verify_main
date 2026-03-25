@@ -12,5 +12,8 @@ verify_jwt = false
 [functions.admin-stats]
 verify_jwt = false
 
+[functions.admin-projects]
+verify_jwt = false
+
 [functions.admin-export]
 verify_jwt = false

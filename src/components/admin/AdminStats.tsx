@@ -53,39 +53,72 @@ export default function AdminStats() {
 
   useEffect(() => {
     const fetchAll = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const [profilesRes, subsRes, collegesRes, dailySubsRes] = await Promise.all([
+          supabase.from("profiles").select("id", { count: "exact", head: true }),
+          supabase.from("submissions").select("status, level"),
+          supabase.from("profiles").select("college_id, score, correct_submissions, total_submissions, colleges(name)").gt("total_submissions", 0),
+          supabase.from("submissions").select("created_at, status").eq("status", "correct").gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString()).order("created_at", { ascending: true }),
+        ]);
 
-      const [statsRes, subsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-stats`, {
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-        }),
-        supabase
-          .from("submissions")
-          .select("created_at, status")
-          .eq("status", "correct")
-          .gte("created_at", new Date(Date.now() - 14 * 86400000).toISOString())
-          .order("created_at", { ascending: true }),
-      ]);
+        if (profilesRes.error) throw profilesRes.error;
+        if (subsRes.error) throw subsRes.error;
 
-      if (!statsRes.ok) { setError("Failed to load stats"); setLoading(false); return; }
-      setStats(await statsRes.json());
+        // Process data like Edge Function used to
+        const submissions = subsRes.data || [];
+        const correctCount = submissions.filter((s) => s.status === "correct").length;
+        const processingCount = submissions.filter((s) => s.status === "processing").length;
+        const skippedCount = submissions.filter((s) => s.status === "skipped" || s.status === "failed").length;
+        const wrongCount = submissions.filter((s) => s.status === "wrong").length;
 
-      // Group by day
-      const dayMap: Record<string, number> = {};
-      for (let i = 13; i >= 0; i--) {
-        const d = new Date(Date.now() - i * 86400000);
-        dayMap[d.toISOString().slice(0, 10)] = 0;
+        const levelCounts: Record<string, number> = { Beginner: 0, Intermediate: 0, Advanced: 0, Mixed: 0 };
+        for (const s of submissions.filter((s) => s.status === "correct")) {
+          const lvl = s.level || "Beginner";
+          if (lvl in levelCounts) levelCounts[lvl]++;
+          else levelCounts[lvl] = (levelCounts[lvl] || 0) + 1;
+        }
+
+        const collegeMap = new Map<string, { name: string; students: number; correct: number; total: number; score: number }>();
+        for (const p of (collegesRes.data || []) as any[]) {
+          const cName = p.colleges?.name || "Unknown";
+          const cId = p.college_id;
+          if (!collegeMap.has(cId)) {
+            collegeMap.set(cId, { name: cName, students: 0, correct: 0, total: 0, score: 0 });
+          }
+          const c = collegeMap.get(cId)!;
+          c.students++;
+          c.correct += p.correct_submissions;
+          c.total += p.total_submissions;
+          c.score += p.score;
+        }
+
+        setStats({
+          totalStudents: profilesRes.count || 0,
+          totalSubmissions: submissions.length,
+          levelCounts,
+        });
+
+        // Group by day for line chart
+        const dayMap: Record<string, number> = {};
+        for (let i = 13; i >= 0; i--) {
+          const d = new Date(Date.now() - i * 86400000);
+          dayMap[d.toISOString().slice(0, 10)] = 0;
+        }
+        for (const s of dailySubsRes.data || []) {
+          const d = s.created_at.slice(0, 10);
+          if (d in dayMap) dayMap[d]++;
+        }
+        setDaily(Object.entries(dayMap).map(([date, count]) => ({
+          date: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          count,
+        })));
+
+      } catch (err: any) {
+        console.error("Direct fetch stats error:", err);
+        setError("Failed to load stats. Please check network.");
+      } finally {
+        setLoading(false);
       }
-      for (const s of subsRes.data || []) {
-        const d = s.created_at.slice(0, 10);
-        if (d in dayMap) dayMap[d]++;
-      }
-      setDaily(Object.entries(dayMap).map(([date, count]) => ({
-        date: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        count,
-      })));
-
-      setLoading(false);
     };
     fetchAll();
   }, []);

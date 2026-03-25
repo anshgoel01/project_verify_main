@@ -96,23 +96,19 @@ export default function Landing() {
   const [studentCount, setStudentCount] = useState(0);
   const [projectCount, setProjectCount] = useState(0);
   const [topEntries, setTopEntries] = useState<TopEntry[]>([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(true);
 
   useEffect(() => {
-    supabase.from("profiles").select("id", { count: "exact", head: true }).then(({ count }) => {
-      if (count) setStudentCount(count);
+    Promise.all([
+      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "correct"),
+      supabase.from("profiles").select("full_name, score").gt("score", 0).order("score", { ascending: false }).limit(5)
+    ]).then(([students, projects, top]) => {
+      if (students.count) setStudentCount(students.count);
+      if (projects.count) setProjectCount(projects.count);
+      if (top.data) setTopEntries(top.data);
+      setIsLoadingLeaderboard(false);
     });
-    supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "correct").then(({ count }) => {
-      if (count) setProjectCount(count);
-    });
-    supabase
-      .from("profiles")
-      .select("full_name, score")
-      .gt("score", 0)
-      .order("score", { ascending: false })
-      .limit(5)
-      .then(({ data }) => {
-        if (data) setTopEntries(data);
-      });
   }, []);
 
   const students = useCountUp(studentCount, 1200);
@@ -173,10 +169,13 @@ export default function Landing() {
                 <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/30" />
                 <span className="ml-3 text-xs text-muted-foreground truncate">projectverifier.vercel.app/admin</span>
               </div>
-              <div className="w-full aspect-video overflow-hidden">
+              <div className="w-full aspect-video overflow-hidden bg-muted">
                 <img
                   src="/adminstats.png"
                   alt="Dashboard Preview"
+                  width={1280}
+                  height={720}
+                  fetchPriority="high"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -263,10 +262,22 @@ export default function Landing() {
 
         <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} custom={1} variants={fadeUp}
           className="max-w-md mx-auto">
-          <Card>
+          <Card className="min-h-[200px]">
             <CardContent className="p-0">
-              {topEntries.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 text-sm">No submissions yet.</p>
+              {isLoadingLeaderboard ? (
+                <ul className="divide-y p-2 lg:p-4">
+                  {[...Array(5)].map((_, i) => (
+                    <li key={i} className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3 w-full">
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                      <Skeleton className="h-4 w-10" />
+                    </li>
+                  ))}
+                </ul>
+              ) : topEntries.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 text-sm h-full flex items-center justify-center">No submissions yet.</p>
               ) : (
                 <ul className="divide-y">
                   {topEntries.map((e, i) => (

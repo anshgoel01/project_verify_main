@@ -1,9 +1,17 @@
 // redeploy trigger
 // @ts-nocheck
 import { createClient } from "supabase";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const weightsSchema = z.record(z.string(), z.number().min(0).max(10));
+const putSchema = z.object({
+  id: z.string().uuid(),
+  level: z.string().min(1),
+  weight: z.number().min(0).max(10),
+});
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -72,13 +80,25 @@ Deno.serve(async (req) => {
 
     // ── POST ── bulk save weights + auto-update matching projects
     if (req.method === "POST") {
-      const { weights } = await req.json();
-      if (!weights || typeof weights !== "object") {
+      let body;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      if (!body.weights || typeof body.weights !== "object") {
         return new Response(JSON.stringify({ error: "Missing weights object" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      const parsed = weightsSchema.safeParse(body.weights);
+      if (!parsed.success) {
+        return new Response(JSON.stringify({ error: "Invalid weights format", details: parsed.error }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const weights = parsed.data;
 
       const { data: oldWeights } = await supabase
         .from("default_weights")
@@ -115,6 +135,13 @@ Deno.serve(async (req) => {
         }
       }
 
+      await supabase.from("audit_logs").insert({
+        admin_id: user.id,
+        action: "UPDATE_DEFAULT_WEIGHTS",
+        entity_name: "default_weights",
+        details: weights,
+      });
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -122,13 +149,21 @@ Deno.serve(async (req) => {
 
     // ── PUT ── update a single project's level and weight
     if (req.method === "PUT") {
-      const { id, level, weight } = await req.json();
-      if (!id) {
-        return new Response(JSON.stringify({ error: "Missing id" }), {
+      let body;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const parsed = putSchema.safeParse(body);
+      if (!parsed.success) {
+        return new Response(JSON.stringify({ error: "Invalid payload format", details: parsed.error }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      const { id, level, weight } = parsed.data;
 
       const { data: projectData, error: projFetchErr } = await supabase
         .from("projects")
@@ -150,6 +185,14 @@ Deno.serve(async (req) => {
           .eq("coursera_course", projectData.course_name);
         if (subErr) throw subErr;
       }
+
+      await supabase.from("audit_logs").insert({
+        admin_id: user.id,
+        action: "UPDATE_PROJECT",
+        entity_name: "projects",
+        entity_id: id,
+        details: { level, weight, course_name: projectData?.course_name },
+      });
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -217,8 +260,8 @@ Deno.serve(async (req) => {
     });
 
   } catch (err: any) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: msg }), {
+    console.error("Admin projects error:", err);
+    return new Response(JSON.stringify({ error: "An internal error occurred." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

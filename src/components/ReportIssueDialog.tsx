@@ -63,6 +63,18 @@ export default function ReportIssueDialog({
       let imageUrl: string | null = null;
 
       if (imageFile) {
+        if (imageFile.size > 5 * 1024 * 1024) {
+          toast.error("File size must be less than 5MB");
+          setSubmitting(false);
+          return;
+        }
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(imageFile.type)) {
+          toast.error("Only JPG, PNG, and WebP images are allowed");
+          setSubmitting(false);
+          return;
+        }
+        
         const ext = imageFile.name.split(".").pop();
         const path = `${user.id}/${Date.now()}.${ext}`;
         const { error: uploadError } = await supabase.storage

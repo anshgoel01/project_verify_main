@@ -2,7 +2,7 @@
 import { createClient } from "supabase";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -61,6 +61,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(JSON.stringify(entries), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    console.error("Admin leaderboard error:", e);
+    return new Response(JSON.stringify({ error: "An internal server error occurred." }), { status: 500, headers: corsHeaders });
   }
 });

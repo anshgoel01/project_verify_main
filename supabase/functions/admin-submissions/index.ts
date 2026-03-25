@@ -1,8 +1,13 @@
 // @ts-nocheck
 import { createClient } from "supabase";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+const deleteSchema = z.object({
+  id: z.string().uuid()
+});
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -24,22 +29,47 @@ async function getAdminClient(req: Request) {
   const { data: isAdmin } = await adminClient.rpc("is_admin", { _user_id: user.id });
   if (!isAdmin) throw new Error("Forbidden");
 
-  return adminClient;
+  return { adminClient, userId: user.id };
 }
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const adminClient = await getAdminClient(req);
+    const { adminClient, userId } = await getAdminClient(req);
 
     // DELETE submission
     if (req.method === "DELETE") {
-      const { id } = await req.json();
-      if (!id) return new Response(JSON.stringify({ error: "Missing submission id" }), { status: 400, headers: corsHeaders });
+      let body;
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400, headers: corsHeaders });
+      }
+
+      const parsed = deleteSchema.safeParse(body);
+      if (!parsed.success) {
+        return new Response(JSON.stringify({ error: "Invalid payload format", details: parsed.error }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { id } = parsed.data;
+      
+      const { data: submissionData } = await adminClient.from("submissions").select("*").eq("id", id).single();
 
       const { error } = await adminClient.from("submissions").delete().eq("id", id);
       if (error) throw error;
+      
+      if (submissionData) {
+        await adminClient.from("audit_logs").insert({
+          admin_id: userId,
+          action: "DELETE_SUBMISSION",
+          entity_name: "submissions",
+          entity_id: id,
+          details: submissionData
+        });
+      }
 
       return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -102,7 +132,9 @@ Deno.serve(async (req: Request) => {
       totalPages: count != null ? Math.ceil(count / limit) : 1,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    console.error("Admin submissions error:", e);
     const status = e.message === "Unauthorized" ? 401 : e.message === "Forbidden" ? 403 : 500;
-    return new Response(JSON.stringify({ error: e.message }), { status, headers: corsHeaders });
+    const msg = status === 500 ? "An internal server error occurred." : e.message;
+    return new Response(JSON.stringify({ error: msg }), { status, headers: corsHeaders });
   }
 });

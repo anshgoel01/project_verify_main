@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { createClient } from "supabase";
+import { Ratelimit } from "npm:@upstash/ratelimit";
+import { Redis } from "npm:@upstash/redis";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -30,7 +32,7 @@ function namesMatch(a: string, b: string, threshold = 80): boolean {
   const totalUniqueWords = new Set([...wordsA, ...wordsB]).size;
 
   const score = (matchingWords / totalUniqueWords) * 100;
-  console.log(`namesMatch("${a}" vs "${b}"): ${matchingWords}/${totalUniqueWords} words = ${score.toFixed(1)}% (threshold: ${threshold}%)`);
+  console.log(`namesMatch checked: ${matchingWords}/${totalUniqueWords} words = ${score.toFixed(1)}%`);
 
   return score >= threshold;
 }
@@ -131,7 +133,7 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
       const altMatch = html.match(/alt="View certificate for ([^,]+),/i);
       if (altMatch) {
         name = normalizeText(altMatch[1]);
-        console.log("Found name via image ALT:", name);
+        console.log("Found name via image ALT");
       }
     }
 
@@ -188,7 +190,7 @@ async function scrapeCoursera(url: string): Promise<{ name: string; course: stri
       else if (urlLower.includes("advanced")) level = "Advanced";
     }
 
-    console.log("Extracted - name:", name || "(empty)", "course:", course || "(empty)", "level:", level);
+    console.log("Extracted profile securely.");
     return { name, course, level };
   } catch (err) {
     console.error("Coursera scrape error:", err);
@@ -277,7 +279,7 @@ async function scrapeLinkedInCaption(url: string): Promise<string> {
             // Strip inner HTML tags and decode entities
             const text = decodeHtmlEntities(match[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
             if (text.length > 20) {
-              console.log("LinkedIn embed caption found:", text.substring(0, 200));
+              console.log("LinkedIn embed caption found. Length:", text.length);
               return text;
             }
           }
@@ -288,7 +290,7 @@ async function scrapeLinkedInCaption(url: string): Promise<string> {
           || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
         if (ogMatch) {
           const caption = decodeHtmlEntities(ogMatch[1]);
-          console.log("LinkedIn embed og:description:", caption.substring(0, 200));
+          console.log("LinkedIn embed og:description found. Length:", caption.length);
           return caption;
         }
 
@@ -316,7 +318,7 @@ async function scrapeLinkedInCaption(url: string): Promise<string> {
       || html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
     if (ogDescMatch) {
       const caption = decodeHtmlEntities(ogDescMatch[1]);
-      console.log("LinkedIn regular og:description:", caption.substring(0, 200));
+      console.log("LinkedIn regular og:description found. Length:", caption.length);
       return caption;
     }
 
@@ -397,15 +399,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   const { course: projectCourse, level: detectedLevel } = projectResult;
   const linkedinUsername = extractLinkedInUsername(submission.linkedin_link);
 
-  console.log("Verification data:", {
-    userName,
-    courseraName: courseraName || "(empty)",
-    linkedinUsername: linkedinUsername || "(empty)",
-    courseraCourse: courseraCourse || "(empty)",
-    projectCourse: projectCourse || "(empty)",
-    linkedinCaption: linkedinCaption ? linkedinCaption.substring(0, 100) + "..." : "(empty)",
-    detectedLevel,
-  });
+  console.log("Verification data loaded securely.");
 
   let studentMatch = false;
   let courseMatch = false;
@@ -462,8 +456,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   let projectNameMatch = true;
   if (courseraCourse && projectCourse && courseraCourse.length > 3 && projectCourse.length > 3) {
     projectNameMatch = namesMatch(courseraCourse, projectCourse, 50);
-    console.log("Project-certificate course name match:", projectNameMatch,
-      `cert="${courseraCourse}" project="${projectCourse}"`);
+    console.log("Project-certificate course name match:", projectNameMatch);
     if (!projectNameMatch) {
       errorMessage = "Project name mismatch — make sure all three links refer to the same course.";
     }
@@ -525,6 +518,27 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Rate Limiting
+  try {
+    const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+    const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+    if (upstashUrl && upstashToken) {
+      const redis = new Redis({ url: upstashUrl, token: upstashToken });
+      const ratelimit = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(5, "60 s"),
+      });
+      const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+      const { success } = await ratelimit.limit(`ratelimit_${ip}`);
+      if (!success) {
+        return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+  } catch (rateLimitErr) {
+    console.error("Rate limit check failed", rateLimitErr);
+    // fail open if redis is down
+  }
+
   let submission_id: string | undefined;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -564,7 +578,7 @@ Deno.serve(async (req) => {
       .single();
 
     const userName = normalizeText(profile?.full_name || "");
-    console.log("User profile name:", userName);
+    console.log("User profile loaded securely.");
 
     try {
       const result = await Promise.race([
@@ -607,7 +621,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ error: "Verification failed", status: "failed" }), {
+    return new Response(JSON.stringify({ error: "Verification failed internally.", status: "failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -2,7 +2,7 @@
 import { createClient } from "supabase";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -346,7 +346,8 @@ Deno.serve(async (req) => {
       },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
+    console.error("Admin export error:", e);
+    return new Response(JSON.stringify({ error: "An internal server error occurred." }), {
       status: 500,
       headers: corsHeaders,
     });

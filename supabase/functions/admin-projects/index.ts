@@ -106,6 +106,12 @@ Deno.serve(async (req) => {
             .update({ weight: w })
             .eq("level", level)
             .eq("weight", oldW);
+            
+          await supabase
+            .from("submissions")
+            .update({ weight: w })
+            .eq("level", level)
+            .eq("weight", oldW);
         }
       }
 
@@ -124,11 +130,26 @@ Deno.serve(async (req) => {
         });
       }
 
+      const { data: projectData, error: projFetchErr } = await supabase
+        .from("projects")
+        .select("course_name")
+        .eq("id", id)
+        .single();
+      if (projFetchErr) throw projFetchErr;
+
       const { error } = await supabase
         .from("projects")
         .update({ level, weight })
         .eq("id", id);
       if (error) throw error;
+
+      if (projectData?.course_name) {
+        const { error: subErr } = await supabase
+          .from("submissions")
+          .update({ level, weight })
+          .eq("coursera_course", projectData.course_name);
+        if (subErr) throw subErr;
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

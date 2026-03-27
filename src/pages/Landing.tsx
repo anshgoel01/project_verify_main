@@ -38,10 +38,12 @@ function useCountUp(target: number, duration = 1500) {
   const started = useRef(false);
 
   useEffect(() => {
+    if (target > 0) started.current = false;
+    
     if (!ref.current) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
+        if (entry.isIntersecting && !started.current && target > 0) {
           started.current = true;
           const start = performance.now();
           const tick = (now: number) => {
@@ -194,7 +196,7 @@ export default function Landing() {
               <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
                 <Users className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="text-4xl font-black text-foreground">{students.val}+</p>
+              <p className="text-4xl font-black text-foreground">{isLoadingLeaderboard ? "..." : `${students.val}+`}</p>
             </motion.div>
             <p className="text-sm text-muted-foreground">Students Registered</p>
           </div>
@@ -204,7 +206,7 @@ export default function Landing() {
               <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
                 <FileCheck className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="text-4xl font-black text-foreground">{projects.val}+</p>
+              <p className="text-4xl font-black text-foreground">{isLoadingLeaderboard ? "..." : `${projects.val}+`}</p>
             </motion.div>
             <p className="text-sm text-muted-foreground">Projects Verified</p>
           </div>

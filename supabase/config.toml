@@ -4,16 +4,16 @@ project_id = "svsixyhhdqngkcmjqyao"
 verify_jwt = true
 
 [functions.admin-leaderboard]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-submissions]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-stats]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-projects]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-export]
-verify_jwt = true
+verify_jwt = false

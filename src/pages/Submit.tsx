@@ -9,8 +9,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Flag, Info } from "lucide-react";
+import { z } from "zod";
+import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Flag, Info, AlertTriangle } from "lucide-react";
 import ReportIssueDialog from "@/components/ReportIssueDialog";
+
+const submissionSchema = z.object({
+  courseraLink: z.string()
+    .url("Invalid URL format")
+    .includes("coursera.org/account/accomplishments/verify/", { message: "Must be a valid Coursera verification link" }),
+  linkedinLink: z.string()
+    .url("Invalid URL format")
+    .includes("linkedin.com", { message: "Must be a valid LinkedIn link" }),
+  projectLink: z.string()
+    .url("Invalid URL format")
+    .includes("coursera.org/projects/", { message: "Must be a valid Coursera project link" }),
+});
+
+type FormErrors = {
+  courseraLink?: string;
+  linkedinLink?: string;
+  projectLink?: string;
+};
 
 export default function Submit() {
   const { user, profile } = useAuth();
@@ -22,15 +41,13 @@ export default function Submit() {
   const [submitting, setSubmitting] = useState(false);
   const [verified, setVerified] = useState(false);
   const [verifyError, setVerifyError] = useState("");
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [verifiedSubmissionId, setVerifiedSubmissionId] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [helpModal, setHelpModal] = useState<{ title: string; image: string } | null>(null);
   const [showLinkedInTip, setShowLinkedInTip] = useState(false);
   const [linkedinFocused, setLinkedinFocused] = useState(false);
-  // const linksValid =
-  //   courseraLink.includes("coursera.org") &&
-  //   linkedinLink.includes("linkedin.com") &&
-  //   projectLink.includes("coursera.org");
+
   const linksValid =
     courseraLink.includes("coursera.org/account/accomplishments/verify/") &&
     linkedinLink.includes("linkedin.com") &&
@@ -39,16 +56,20 @@ export default function Submit() {
   const handleVerify = async () => {
     if (!user || !profile) return;
 
-    if (!courseraLink.includes("coursera.org")) {
-      toast.error("Please enter a valid Coursera certificate link");
-      return;
-    }
-    if (!linkedinLink.includes("linkedin.com")) {
-      toast.error("Please enter a valid LinkedIn link");
-      return;
-    }
-    if (!projectLink.includes("coursera.org/projects/")) {
-      toast.error("Please enter a valid Coursera project link (coursera.org/projects/...)");
+    const validation = submissionSchema.safeParse({
+      courseraLink,
+      linkedinLink,
+      projectLink,
+    });
+
+    if (!validation.success) {
+      const fieldErrors: FormErrors = {};
+      validation.error.errors.forEach((err) => {
+        const path = err.path[0] as keyof FormErrors;
+        if (!fieldErrors[path]) fieldErrors[path] = err.message;
+      });
+      setFormErrors(fieldErrors);
+      toast.error("Please fix the errors in the form");
       return;
     }
 
@@ -128,11 +149,20 @@ export default function Submit() {
     }
   };
 
-  const handleLinkChange = (setter: (v: string) => void, value: string) => {
+  const handleLinkChange = (setter: (v: string) => void, field: keyof FormErrors, value: string) => {
     setter(value);
     setVerified(false);
     setVerifyError("");
     setVerifiedSubmissionId(null);
+    setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
+  const handleBlur = (field: keyof FormErrors, value: string) => {
+    if (!value) return;
+    const result = submissionSchema.shape[field].safeParse(value);
+    if (!result.success) {
+      setFormErrors((prev) => ({ ...prev, [field]: result.error.errors[0].message }));
+    }
   };
 
   return (
@@ -140,22 +170,25 @@ export default function Submit() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" /> Submit Project
+            <Send className="h-5 w-5" /> Submit Guided Project
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="coursera">Coursera Certificate Link</Label>
+              <Label htmlFor="coursera" className={formErrors.courseraLink ? "text-destructive" : ""}>
+                Coursera Certificate Link
+              </Label>
               <div className="relative">
                 <Input
                   id="coursera"
                   value={courseraLink}
-                  onChange={(e) => handleLinkChange(setCourseraLink, e.target.value)}
-                  placeholder="https://www.coursera.org/account/accomplishments/..."
+                  onChange={(e) => handleLinkChange(setCourseraLink, "courseraLink", e.target.value)}
+                  onBlur={(e) => handleBlur("courseraLink", e.target.value)}
+                  placeholder="https://www.coursera.org/account/accomplishments/verify/..."
                   required
                   disabled={verified}
-                  className="pr-9"
+                  className={`pr-9 ${formErrors.courseraLink ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 <button
                   type="button"
@@ -165,18 +198,26 @@ export default function Submit() {
                   <Info className="h-4 w-4" />
                 </button>
               </div>
+              {formErrors.courseraLink && (
+                <p className="text-xs font-medium text-destructive flex items-center gap-1 mt-1">
+                  <AlertTriangle className="h-3 w-3" /> {formErrors.courseraLink}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="project">Coursera Project Link</Label>
+              <Label htmlFor="project" className={formErrors.projectLink ? "text-destructive" : ""}>
+                Coursera Project Link
+              </Label>
               <div className="relative">
                 <Input
                   id="project"
                   value={projectLink}
-                  onChange={(e) => handleLinkChange(setProjectLink, e.target.value)}
+                  onChange={(e) => handleLinkChange(setProjectLink, "projectLink", e.target.value)}
+                  onBlur={(e) => handleBlur("projectLink", e.target.value)}
                   placeholder="https://www.coursera.org/projects/your-project-name"
                   required
                   disabled={verified}
-                  className="pr-9"
+                  className={`pr-9 ${formErrors.projectLink ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 <button
                   type="button"
@@ -186,20 +227,30 @@ export default function Submit() {
                   <Info className="h-4 w-4" />
                 </button>
               </div>
+              {formErrors.projectLink && (
+                <p className="text-xs font-medium text-destructive flex items-center gap-1 mt-1">
+                  <AlertTriangle className="h-3 w-3" /> {formErrors.projectLink}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="linkedin">LinkedIn Post Link</Label>
+              <Label htmlFor="linkedin" className={formErrors.linkedinLink ? "text-destructive" : ""}>
+                LinkedIn Post Link
+              </Label>
               <div className="relative">
                 <Input
                   id="linkedin"
                   value={linkedinLink}
-                  onChange={(e) => handleLinkChange(setLinkedinLink, e.target.value)}
+                  onChange={(e) => handleLinkChange(setLinkedinLink, "linkedinLink", e.target.value)}
                   onFocus={() => setLinkedinFocused(true)}
-                  onBlur={() => setLinkedinFocused(false)}
+                  onBlur={(e) => {
+                    setLinkedinFocused(false);
+                    handleBlur("linkedinLink", e.target.value);
+                  }}
                   placeholder="https://www.linkedin.com/posts/..."
                   required
                   disabled={verified}
-                  className="pr-9"
+                  className={`pr-9 ${formErrors.linkedinLink ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 <button
                   type="button"
@@ -215,6 +266,11 @@ export default function Submit() {
                   </div>
                 )} */}
               </div>
+              {formErrors.linkedinLink && (
+                <p className="text-xs font-medium text-destructive flex items-center gap-1 mt-1">
+                  <AlertTriangle className="h-3 w-3" /> {formErrors.linkedinLink}
+                </p>
+              )}
               {/* Collapsible how-to section */}
               <button
                 type="button"

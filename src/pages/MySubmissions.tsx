@@ -28,6 +28,7 @@ export default function MySubmissions() {
       .from("submissions")
       .select("*")
       .eq("user_id", user.id)
+      .neq("status", "processing")
       .order("created_at", { ascending: false });
     if (data) setSubmissions(data);
     setLoading(false);

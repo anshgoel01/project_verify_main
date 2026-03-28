@@ -7,7 +7,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, FileCheck, BarChart3, ShieldCheck, UserCheck, FolderOpen } from "lucide-react";
 import AdminStats from "@/components/admin/AdminStats";
 import AdminProjects from "@/components/admin/AdminProjects";
-import AdminSubmissions from "@/components/admin/AdminSubmissions";
 import AdminRequests from "@/components/admin/AdminRequests";
 
 const HEAD_ADMIN_EMAIL = "agoel2_be23@thapar.edu";
@@ -60,15 +59,12 @@ export default function AdminDashboard() {
       </div>
 
       <Tabs defaultValue="stats" className="space-y-6">
-        <TabsList className={`grid w-full ${isHeadAdmin ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <TabsList className={`grid w-full ${isHeadAdmin ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" /> Stats
           </TabsTrigger>
           <TabsTrigger value="projects" className="gap-2">
             <FolderOpen className="h-4 w-4" /> Projects
-          </TabsTrigger>
-          <TabsTrigger value="submissions" className="gap-2">
-            <FileCheck className="h-4 w-4" /> Submissions
           </TabsTrigger>
           {isHeadAdmin && (
             <TabsTrigger value="requests" className="gap-2">
@@ -82,9 +78,6 @@ export default function AdminDashboard() {
         </TabsContent>
         <TabsContent value="projects">
           <AdminProjects />
-        </TabsContent>
-        <TabsContent value="submissions">
-          <AdminSubmissions />
         </TabsContent>
         {isHeadAdmin && (
           <TabsContent value="requests">

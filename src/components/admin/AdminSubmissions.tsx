@@ -4,24 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Label } from "@/components/ui/label";
 
-import { Loader2, FileCheck, ExternalLink, Trash2, Download, Lock, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, FileCheck, ExternalLink, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 
-const OPTIONAL_COLUMNS = [
-  { key: "coursera_link", label: "Coursera Link" },
-  { key: "linkedin_link", label: "LinkedIn Link" },
-  { key: "marks", label: "Marks" },
-  { key: "total_submissions", label: "Total Submissions" },
-  { key: "beginner_submissions", label: "Beginner Submissions" },
-  { key: "intermediate_submissions", label: "Intermediate Submissions" },
-  { key: "advanced_submissions", label: "Advanced Submissions" },
-  { key: "mixed_submissions", label: "Mixed Submissions" },
-] as const;
 
 type Submission = {
   id: string;
@@ -50,15 +37,7 @@ export default function AdminSubmissions() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(["coursera_link", "linkedin_link", "marks"]);
   const prevFiltersRef = useRef({ college: selectedCollege });
-
-  const toggleColumn = (key: string) => {
-    setSelectedColumns((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
-  };
 
   useEffect(() => {
     supabase.from("colleges").select("id, name").order("name").then(({ data }) => {
@@ -122,34 +101,6 @@ export default function AdminSubmissions() {
     setDeletingId(null);
   };
 
-  const handleExport = async () => {
-    if (selectedColumns.length === 0) {
-      toast.error("Select at least one optional column");
-      return;
-    }
-    setExporting(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const params = new URLSearchParams();
-    params.set("columns", selectedColumns.join(","));
-    if (selectedCollege !== "all") params.set("college_id", selectedCollege);
-
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-export?${params}`,
-      { headers: { Authorization: `Bearer ${session?.access_token}` } }
-    );
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "submissions_report.xls";
-      a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      toast.error("Failed to export");
-    }
-    setExporting(false);
-  };
 
   return (
     <Card>
@@ -159,46 +110,6 @@ export default function AdminSubmissions() {
             <FileCheck className="h-5 w-5 text-primary" /> All Submissions
           </CardTitle>
 
-          {/* Download Report Dropdown */}
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" /> Download Report <ChevronDown className="h-3 w-3" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-4 space-y-3">
-              <p className="text-sm font-semibold">Report Columns</p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 opacity-70">
-                  <Checkbox checked disabled />
-                  <Label className="flex items-center gap-1"><Lock className="h-3 w-3" /> Student Name</Label>
-                </div>
-                <div className="flex items-center gap-2 opacity-70">
-                  <Checkbox checked disabled />
-                  <Label className="flex items-center gap-1"><Lock className="h-3 w-3" /> Roll No</Label>
-                </div>
-                {OPTIONAL_COLUMNS.map((col) => (
-                  <div key={col.key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={col.key}
-                      checked={selectedColumns.includes(col.key)}
-                      onCheckedChange={() => toggleColumn(col.key)}
-                    />
-                    <Label htmlFor={col.key} className="cursor-pointer">{col.label}</Label>
-                  </div>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                className="w-full gap-2"
-                disabled={exporting || selectedColumns.length === 0}
-                onClick={handleExport}
-              >
-                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Download .xls
-              </Button>
-            </PopoverContent>
-          </Popover>
         </div>
 
         {/* <div className="flex flex-wrap gap-3">

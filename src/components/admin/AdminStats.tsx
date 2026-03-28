@@ -1,7 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Users, FileCheck, BarChart3, TrendingUp } from "lucide-react";
+import { Loader2, Users, FileCheck, BarChart3, TrendingUp, Download, ChevronDown, Lock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -45,11 +51,68 @@ const fadeUp = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.1, duration: 0.5 } }),
 };
 
+const OPTIONAL_COLUMNS = [
+  { key: "coursera_link", label: "Coursera Link" },
+  { key: "linkedin_link", label: "LinkedIn Link" },
+  { key: "marks", label: "Marks" },
+  { key: "total_submissions", label: "Total Submissions" },
+  { key: "beginner_submissions", label: "Beginner Submissions" },
+  { key: "intermediate_submissions", label: "Intermediate Submissions" },
+  { key: "advanced_submissions", label: "Advanced Submissions" },
+  { key: "mixed_submissions", label: "Mixed Submissions" },
+] as const;
+
 export default function AdminStats() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [daily, setDaily] = useState<DailyCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [exporting, setExporting] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(["coursera_link", "linkedin_link", "marks"]);
+  const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCollege, setSelectedCollege] = useState("all");
+
+  useEffect(() => {
+    supabase.from("colleges").select("id, name").order("name").then(({ data }) => {
+      if (data) setColleges(data);
+    });
+  }, []);
+
+  const toggleColumn = (key: string) => {
+    setSelectedColumns((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleExport = async () => {
+    if (selectedColumns.length === 0) {
+      toast.error("Select at least one optional column");
+      return;
+    }
+    setExporting(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const params = new URLSearchParams();
+    params.set("columns", selectedColumns.join(","));
+    if (selectedCollege !== "all") params.set("college_id", selectedCollege);
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-export?${params}`,
+      { headers: { Authorization: `Bearer ${session?.access_token}` } }
+    );
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "submissions_report.xls";
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      toast.error("Failed to export");
+    }
+    setExporting(false);
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -136,6 +199,71 @@ export default function AdminStats() {
 
   return (
     <div className="space-y-6">
+      {/* Quick Actions / Download Section */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 sm:py-6 gap-4">
+            <div className="space-y-1">
+              <CardTitle className="text-xl font-bold">Admin Reports</CardTitle>
+              <p className="text-sm text-muted-foreground">Download detailed submission data for all students.</p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* <Select value={selectedCollege} onValueChange={setSelectedCollege}>
+                <SelectTrigger className="w-[180px] bg-background">
+                  <SelectValue placeholder="All Colleges" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colleges</SelectItem>
+                  {colleges.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select> */}
+
+              {/* Download Report Popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button size="lg" className="gap-2 shadow-lg shadow-primary/20">
+                    {exporting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
+                    Download Report <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 p-4 space-y-3">
+                  <p className="text-sm font-semibold">Report Columns</p>
+                  <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2">
+                    <div className="flex items-center gap-2 opacity-70">
+                      <Checkbox checked disabled />
+                      <Label className="flex items-center gap-1"><Lock className="h-3 w-3" /> Student Name</Label>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-70">
+                      <Checkbox checked disabled />
+                      <Label className="flex items-center gap-1"><Lock className="h-3 w-3" /> Roll No</Label>
+                    </div>
+                    {OPTIONAL_COLUMNS.map((col) => (
+                      <div key={col.key} className="flex items-center gap-2">
+                        <Checkbox
+                          id={col.key}
+                          checked={selectedColumns.includes(col.key)}
+                          onCheckedChange={() => toggleColumn(col.key)}
+                        />
+                        <Label htmlFor={col.key} className="cursor-pointer text-xs">{col.label}</Label>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    className="w-full gap-2 mt-2"
+                    disabled={exporting || selectedColumns.length === 0}
+                    onClick={handleExport}
+                  >
+                    {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Generate .xls Report
+                  </Button>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardHeader>
+        </Card>
+      </motion.div>
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <motion.div custom={0} initial="hidden" animate="visible" variants={fadeUp}>

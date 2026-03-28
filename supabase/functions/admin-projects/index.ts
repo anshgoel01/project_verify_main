@@ -36,7 +36,8 @@ async function verifyAdmin(req: Request) {
     global: { headers: { Authorization: authHeader } },
   });
 
-  const { data: { user } } = await userClient.auth.getUser();
+  const { data: authData } = await userClient.auth.getUser();
+  const user = authData?.user;
   if (!user) return null;
 
   const { data: roleData } = await supabase
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const { supabase } = result;
+    const { supabase, user } = result;
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
@@ -135,16 +136,24 @@ Deno.serve(async (req) => {
         }
       }
 
-      await supabase.from("audit_logs").insert({
-        admin_id: user.id,
-        action: "UPDATE_DEFAULT_WEIGHTS",
-        entity_name: "default_weights",
-        details: weights,
-      });
-
-      return new Response(JSON.stringify({ success: true }), {
+      // Return success early after the primary DB update
+      const successResponse = new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+
+      // Background logging
+      try {
+        await supabase.from("audit_logs").insert({
+          admin_id: user.id,
+          action: "UPDATE_DEFAULT_WEIGHTS",
+          entity_name: "default_weights",
+          details: weights,
+        });
+      } catch (logErr) {
+        console.error("Audit log error (POST weights):", logErr);
+      }
+
+      return successResponse;
     }
 
     // ── PUT ── update a single project's level and weight
@@ -186,13 +195,17 @@ Deno.serve(async (req) => {
         if (subErr) throw subErr;
       }
 
-      await supabase.from("audit_logs").insert({
-        admin_id: user.id,
-        action: "UPDATE_PROJECT",
-        entity_name: "projects",
-        entity_id: id,
-        details: { level, weight, course_name: projectData?.course_name },
-      });
+      try {
+        await supabase.from("audit_logs").insert({
+          admin_id: user.id,
+          action: "UPDATE_PROJECT",
+          entity_name: "projects",
+          entity_id: id,
+          details: { level, weight, course_name: projectData?.course_name },
+        });
+      } catch (logErr) {
+        console.error("Audit log error (PUT project):", logErr);
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -261,7 +274,8 @@ Deno.serve(async (req) => {
 
   } catch (err: any) {
     console.error("Admin projects error:", err);
-    return new Response(JSON.stringify({ error: "An internal error occurred." }), {
+    const errorMsg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err)) || "An internal error occurred.";
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -92,9 +92,12 @@ export default function AdminStats() {
           c.score += p.score;
         }
 
+        const profilesData = collegesRes.data || [];
+        const totalSubmissionsByProfiles = profilesData.reduce((acc, p) => acc + (p.total_submissions || 0), 0);
+
         setStats({
           totalStudents: profilesRes.count || 0,
-          totalSubmissions: submissions.length,
+          totalSubmissions: totalSubmissionsByProfiles,
           levelCounts,
         });
 

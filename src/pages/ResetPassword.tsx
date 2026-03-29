@@ -42,7 +42,7 @@ export default function ResetPassword() {
             toast.error(error);
         } else {
             toast.success("Password updated successfully!");
-            navigate("/submit");
+            navigate("/");
         }
         setLoading(false);
     };

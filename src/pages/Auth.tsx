@@ -440,7 +440,7 @@ function AuthForm({
                         toast.info("Your admin request has been submitted and is pending approval.");
                       }
                     }
-                    navigate("/submit");
+                    navigate("/");
                   }
                   setLoading(false);
                 }} disabled={loading || otpCode.length < 6}>Verify</Button>
@@ -466,7 +466,7 @@ export default function Auth() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => { if (user) navigate("/submit"); }, [user, navigate]);
+  useEffect(() => { if (user) navigate("/"); }, [user, navigate]);
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4">

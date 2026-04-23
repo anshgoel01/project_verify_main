@@ -13,7 +13,8 @@ function normalizeText(text: string | null): string {
   if (!text) return "";
   return text
     .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
+    .replace(/[-_.\s]+/g, " ")  // treat hyphens, underscores, dots as word separators
+    .replace(/[^a-z\s]/g, "")   // strip any remaining non-alpha characters
     .replace(/\s+/g, " ")
     .trim();
 }

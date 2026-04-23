@@ -450,15 +450,24 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   // AND either LinkedIn matches the user OR LinkedIn matches the certificate name
   studentMatch = courseraMatchesUser && (linkedinMatchesUser || courseraMatchesLinkedin);
 
+  // courseMatch: certificate must show a readable course name
   courseMatch = !!courseraCourse && courseraCourse.length > 3;
 
-  // Cross-check: project course name must match certificate course name
+  // Cross-check: project course name MUST match certificate course name.
+  // If we have a project_link but can't scrape a course name from it,
+  // that is still a mismatch — don't silently pass.
   let projectNameMatch = true;
-  if (courseraCourse && projectCourse && courseraCourse.length > 3 && projectCourse.length > 3) {
-    projectNameMatch = namesMatch(courseraCourse, projectCourse, 50);
-    console.log("Project-certificate course name match:", projectNameMatch);
-    if (!projectNameMatch) {
-      errorMessage = "Project name mismatch — make sure all three links refer to the same course.";
+  if (submission.project_link) {
+    if (!projectCourse || projectCourse.length <= 3) {
+      // Couldn't read the project page — can't verify the match
+      projectNameMatch = false;
+      errorMessage = "Could not read the project page — please use the direct Coursera project link (coursera.org/projects/...).";
+    } else if (courseraCourse && courseraCourse.length > 3) {
+      projectNameMatch = namesMatch(courseraCourse, projectCourse, 50);
+      console.log("Project-certificate course name match:", projectNameMatch);
+      if (!projectNameMatch) {
+        errorMessage = "Project name mismatch — make sure all three links refer to the same course.";
+      }
     }
   }
 

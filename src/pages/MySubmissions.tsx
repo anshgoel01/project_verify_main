@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ExternalLink, ChevronDown } from "lucide-react";
+import { Loader2, ExternalLink, ChevronDown, CheckCircle2, XCircle, Clock, SkipForward } from "lucide-react";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -11,16 +11,44 @@ type Submission = {
   id: string;
   coursera_link: string;
   linkedin_link: string;
+  project_link: string | null;
   coursera_course: string | null;
+  error_message: string | null;
+  status: string;
   created_at: string;
   level: string | null;
 };
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "correct") return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+      <CheckCircle2 className="h-3.5 w-3.5" /> Accepted
+    </span>
+  );
+  if (status === "wrong") return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500">
+      <XCircle className="h-3.5 w-3.5" /> Rejected
+    </span>
+  );
+  if (status === "skipped") return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-500">
+      <SkipForward className="h-3.5 w-3.5" /> Needs Review
+    </span>
+  );
+  if (status === "failed") return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+      <Clock className="h-3.5 w-3.5" /> Failed
+    </span>
+  );
+  return <span className="text-xs text-muted-foreground">{status}</span>;
+}
 
 export default function MySubmissions() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [showRejected, setShowRejected] = useState(false);
 
   const fetchSubmissions = async () => {
     if (!user) return;
@@ -55,7 +83,11 @@ export default function MySubmissions() {
     Mixed: "bg-purple-500",
   };
 
-  const groupedByLevel = submissions.reduce<Record<string, Submission[]>>((acc, s) => {
+  // Only count/display correct submissions as "accepted"
+  const correctSubmissions = submissions.filter(s => s.status === "correct");
+  const rejectedSubmissions = submissions.filter(s => s.status !== "correct");
+
+  const groupedByLevel = correctSubmissions.reduce<Record<string, Submission[]>>((acc, s) => {
     const level = s.level || "Mixed";
     if (!acc[level]) acc[level] = [];
     acc[level].push(s);
@@ -66,7 +98,7 @@ export default function MySubmissions() {
     const defaults: Record<string, boolean> = {};
     levelOrder.forEach((l) => { if (groupedByLevel[l]) defaults[l] = true; });
     setOpenGroups(defaults);
-  }, [submissions.length]);
+  }, [correctSubmissions.length]);
 
   if (loading) {
     return (
@@ -78,81 +110,143 @@ export default function MySubmissions() {
 
   return (
     <div className="container py-10 space-y-6">
-      <h1 className="text-2xl font-bold">My Submissions ({submissions.length})</h1>
+      <h1 className="text-2xl font-bold">My Submissions</h1>
 
-      {submissions.length === 0 ? (
-        <Card>
-          <CardContent className="py-8">
-            <p className="text-center text-muted-foreground">No submissions yet. Submit your first project!</p>
-          </CardContent>
-        </Card>
-      ) : (
-        levelOrder
-          .filter((level) => groupedByLevel[level]?.length)
-          .map((level) => {
-            const subs = groupedByLevel[level];
-            return (
-              <Collapsible
-                key={level}
-                open={openGroups[level] ?? true}
-                onOpenChange={(open) => setOpenGroups((prev) => ({ ...prev, [level]: open }))}
-              >
-                <Card>
-                  <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer select-none hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`h-2.5 w-2.5 rounded-full ${levelColors[level]}`} />
-                          <CardTitle className="text-lg">{level}</CardTitle>
-                          <span className="text-sm text-muted-foreground">({subs.length})</span>
+      {/* ── Accepted submissions grouped by level ── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-green-500" />
+          <h2 className="text-lg font-semibold">Accepted ({correctSubmissions.length})</h2>
+        </div>
+
+        {correctSubmissions.length === 0 ? (
+          <Card>
+            <CardContent className="py-8">
+              <p className="text-center text-muted-foreground">No accepted submissions yet. Submit your first project!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          levelOrder
+            .filter((level) => groupedByLevel[level]?.length)
+            .map((level) => {
+              const subs = groupedByLevel[level];
+              return (
+                <Collapsible
+                  key={level}
+                  open={openGroups[level] ?? true}
+                  onOpenChange={(open) => setOpenGroups((prev) => ({ ...prev, [level]: open }))}
+                >
+                  <Card>
+                    <CollapsibleTrigger asChild>
+                      <CardHeader className="cursor-pointer select-none hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2.5 w-2.5 rounded-full ${levelColors[level]}`} />
+                            <CardTitle className="text-lg">{level}</CardTitle>
+                            <span className="text-sm text-muted-foreground">({subs.length})</span>
+                          </div>
+                          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${openGroups[level] ? "rotate-180" : ""}`} />
                         </div>
-                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${openGroups[level] ? "rotate-180" : ""}`} />
-                      </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>#</TableHead>
-                              <TableHead>Date</TableHead>
-                              <TableHead>Course</TableHead>
-                              <TableHead>Links</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {subs.map((s, i) => (
-                              <TableRow key={s.id}>
-                                <TableCell className="font-medium">{subs.length - i}</TableCell>
-                                <TableCell className="whitespace-nowrap">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
-                                <TableCell className="max-w-[200px] truncate">{s.coursera_course || "—"}</TableCell>
-                                <TableCell>
-                                  <div className="flex gap-2">
-                                    <a href={s.coursera_link} target="_blank" rel="noopener" className="text-primary hover:underline">
-                                      <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                    <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-primary hover:underline">
-                                      <ExternalLink className="h-4 w-4" />
-                                    </a>
-                                  </div>
-                                </TableCell>
+                      </CardHeader>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>#</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Course</TableHead>
+                                <TableHead>Links</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </CardContent>
-                  </CollapsibleContent>
-                </Card>
-              </Collapsible>
-            );
-          })
+                            </TableHeader>
+                            <TableBody>
+                              {subs.map((s, i) => (
+                                <TableRow key={s.id}>
+                                  <TableCell className="font-medium">{subs.length - i}</TableCell>
+                                  <TableCell className="whitespace-nowrap">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
+                                  <TableCell className="max-w-[200px] truncate">{s.coursera_course || "—"}</TableCell>
+                                  <TableCell>
+                                    <div className="flex gap-2">
+                                      <a href={s.coursera_link} target="_blank" rel="noopener" className="text-primary hover:underline">
+                                        <ExternalLink className="h-4 w-4" />
+                                      </a>
+                                      <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-primary hover:underline">
+                                        <ExternalLink className="h-4 w-4" />
+                                      </a>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              );
+            })
+        )}
+      </div>
+
+      {/* ── Rejected/failed submissions (collapsible, not counted as accepted) ── */}
+      {rejectedSubmissions.length > 0 && (
+        <Collapsible open={showRejected} onOpenChange={setShowRejected}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <XCircle className="h-4 w-4 text-red-400" />
+              <span>Rejected / Failed ({rejectedSubmissions.length})</span>
+              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showRejected ? "rotate-180" : ""}`} />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mt-2 border-dashed border-muted-foreground/30">
+              <CardContent className="pt-4">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Course</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Links</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rejectedSubmissions.map((s) => (
+                        <TableRow key={s.id} className="opacity-70">
+                          <TableCell className="whitespace-nowrap text-xs">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
+                          <TableCell className="max-w-[160px] truncate text-xs">{s.coursera_course || "—"}</TableCell>
+                          <TableCell><StatusBadge status={s.status} /></TableCell>
+                          <TableCell className="max-w-[220px] text-xs text-muted-foreground">{s.error_message || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <a href={s.coursera_link} target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                              <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </div>
   );
 }
+
+
 
 // import { useEffect, useState } from "react";
 // import { supabase } from "@/integrations/supabase/client";

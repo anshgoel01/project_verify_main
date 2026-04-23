@@ -236,7 +236,7 @@ import InfoPill from "@/components/profile/InfoPill";
 import PasswordStrengthBar from "@/components/profile/PasswordStrengthBar";
 
 export default function Profile() {
-  const { profile, refreshProfile, signOut } = useAuth();
+  const { profile, profileLoading, refreshProfile, signOut, user } = useAuth();
   const navigate = useNavigate();
   const [collegeName, setCollegeName] = useState("");
   const [editing, setEditing] = useState(false);
@@ -255,7 +255,7 @@ export default function Profile() {
       });
     }
     if (profile) {
-      setFullName(profile.full_name);
+      setFullName(profile.full_name || "");
       setRollNo(profile.roll_no || "");
     }
   }, [profile]);
@@ -291,15 +291,90 @@ export default function Profile() {
       });
   }, [profile]);
 
-  if (!profile) return null;
+  // ── Loading state: show skeleton while profile is being fetched ──
+  if (profileLoading) {
+    return (
+      <div className="container max-w-2xl py-10 space-y-6 px-4">
+        <Card className="overflow-hidden border-t-2 border-t-primary shadow-sm">
+          <div className="relative h-32 bg-muted animate-pulse" />
+          <CardHeader className="pt-14 pb-2 text-center space-y-3">
+            <div className="flex justify-center">
+              <div className="h-20 w-20 rounded-full bg-muted animate-pulse -mt-24 ring-4 ring-background" />
+            </div>
+            <div className="space-y-2 flex flex-col items-center">
+              <div className="h-7 w-48 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-56 bg-muted animate-pulse rounded" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="h-8 w-32 bg-muted animate-pulse rounded-full" />
+              <div className="h-8 w-40 bg-muted animate-pulse rounded-full" />
+              <div className="h-8 w-36 bg-muted animate-pulse rounded-full" />
+            </div>
+            <div className="h-10 w-full bg-muted animate-pulse rounded" />
+          </CardContent>
+        </Card>
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="h-6 w-44 bg-muted animate-pulse rounded" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            <div className="h-10 w-full bg-muted animate-pulse rounded" />
+            <div className="h-10 w-full bg-muted animate-pulse rounded" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  // Get initials for avatar
-  const initials = profile.full_name
+  // ── Empty state: no profile row exists for this user ──
+  if (!profile) {
+    return (
+      <div className="container max-w-2xl py-10 space-y-6 px-4">
+        <Card className="overflow-hidden border-t-2 border-t-primary shadow-sm">
+          <div
+            className="relative h-32"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary)/0.5), hsl(var(--primary)/0.25), transparent)",
+            }}
+          />
+          <CardHeader className="pt-8 pb-2 text-center">
+            <CardTitle className="text-2xl">Welcome!</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {user?.email ?? "Your account is set up."}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 space-y-3">
+              <p className="text-muted-foreground text-sm">
+                Your profile hasn't been created yet. This can happen if signup was interrupted.
+              </p>
+              <p className="text-muted-foreground text-sm">
+                Please contact an administrator or try signing out and signing up again.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2 text-muted-foreground transition-all hover:bg-destructive/20 hover:text-destructive hover:border-destructive/50"
+              onClick={async () => { await signOut(); navigate("/"); }}
+            >
+              <LogOut className="h-4 w-4" /> Logout & Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Get initials for avatar (null-safe)
+  const initials = (profile.full_name || "?")
     .split(" ")
-    .map((n: string) => n[0])
+    .map((n: string) => n[0] || "")
     .slice(0, 2)
     .join("")
-    .toUpperCase();
+    .toUpperCase() || "?";
 
   return (
     <div className="container max-w-2xl py-10 space-y-6 px-4">

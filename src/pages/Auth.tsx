@@ -232,7 +232,7 @@
 
 
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -320,11 +320,47 @@ function AuthForm({
   const [loading, setLoading] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { signUp, signIn, verifyOtp } = useAuth();
   const navigate = useNavigate();
 
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+    };
+  }, []);
+
+  const startCooldown = (seconds: number) => {
+    setCooldownSeconds(seconds);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          cooldownRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const isButtonDisabled = loading || cooldownSeconds > 0;
+
+  const getButtonLabel = () => {
+    if (cooldownSeconds > 0) return `Please wait (${cooldownSeconds}s)`;
+    if (loading) return "Please wait...";
+    return isSignUp ? "Sign Up" : "Sign In";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Block if already loading or in cooldown
+    if (isButtonDisabled) return;
+
     setLoading(true);
     if (!email.endsWith("@thapar.edu")) {
       toast.error("Only @thapar.edu email addresses are allowed");
@@ -337,8 +373,14 @@ function AuthForm({
         setLoading(false);
         return;
       }
-      const { error } = await signUp(email, password, fullName, THAPAR_COLLEGE_ID, rollNo);
-      if (error) { toast.error(error); } else {
+      const result = await signUp(email, password, fullName, THAPAR_COLLEGE_ID, rollNo);
+      if (result.error) {
+        toast.error(result.error);
+        // Start 60-second cooldown on rate-limit errors
+        if (result.rateLimited) {
+          startCooldown(60);
+        }
+      } else {
         setIsVerifying(true);
         toast.success("Signup successful! Please enter the OTP sent to your email.");
       }
@@ -417,8 +459,8 @@ function AuthForm({
             </RadioGroup>
             {role === "admin" && <p className="text-xs text-muted-foreground">Admin access requires approval. You'll be notified once approved.</p>}
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Please wait..." : isSignUp ? "Sign Up" : "Sign In"}
+          <Button type="submit" className="w-full" disabled={isButtonDisabled}>
+            {getButtonLabel()}
           </Button>
         </form>
 

@@ -15,12 +15,14 @@ type Profile = {
   created_at: string;
 };
 
+type SignUpResult = { error: string | null; rateLimited?: boolean };
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string) => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, collegeId: string, rollNo: string) => {
+  const signUp = async (email: string, password: string, fullName: string, collegeId: string, rollNo: string): Promise<SignUpResult> => {
     // Validate @thapar.edu
     if (!email.endsWith("@thapar.edu")) {
       return { error: "Only @thapar.edu email addresses are allowed" };
@@ -85,7 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: { emailRedirectTo: window.location.origin },
     });
-    if (error) return { error: error.message };
+
+    if (error) {
+      // Detect 429 rate-limit errors from Supabase
+      const isRateLimited =
+        error.status === 429 ||
+        error.message?.toLowerCase().includes("rate limit") ||
+        error.message?.toLowerCase().includes("too many requests");
+
+      if (isRateLimited) {
+        return {
+          error: "Too many attempts. Please wait a few minutes before trying again.",
+          rateLimited: true,
+        };
+      }
+      return { error: error.message };
+    }
 
     if (data.user) {
       const { error: profileErr } = await supabase.from("profiles").insert({

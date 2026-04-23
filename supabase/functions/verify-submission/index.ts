@@ -18,12 +18,25 @@ function normalizeText(text: string | null): string {
     .trim();
 }
 
-// ✅ FIXED: word-based matching instead of broken character-level levenshtein
+// ✅ FIXED: word-based matching + compact fallback for LinkedIn slugs
 function namesMatch(a: string, b: string, threshold = 80): boolean {
   if (!a || !b) return false;
 
-  const wordsA = normalizeText(a).split(" ").filter(Boolean).sort();
-  const wordsB = normalizeText(b).split(" ").filter(Boolean).sort();
+  const normA = normalizeText(a);
+  const normB = normalizeText(b);
+
+  // Fast-path: compare with all spaces removed.
+  // Handles LinkedIn slugs like "palakmahajan" matching profile name "palak mahajan".
+  const compactA = normA.replace(/\s+/g, "");
+  const compactB = normB.replace(/\s+/g, "");
+  if (compactA && compactB && compactA === compactB) {
+    console.log(`namesMatch: compact match "${compactA}" === "${compactB}"`);
+    return true;
+  }
+
+  // Word-based scoring
+  const wordsA = normA.split(" ").filter(Boolean).sort();
+  const wordsB = normB.split(" ").filter(Boolean).sort();
 
   if (wordsA.length === 0 || wordsB.length === 0) return false;
 
@@ -595,7 +608,15 @@ Deno.serve(async (req) => {
         timeoutPromise(12000),
       ]);
 
-      await supabase.from("submissions").update({ ...result }).eq("id", submission_id);
+      if (result.status === "correct") {
+        // Only persist the submission when it's verified correct
+        await supabase.from("submissions").update({ ...result }).eq("id", submission_id);
+        console.log("Verification passed — submission saved:", submission_id);
+      } else {
+        // Delete failed/wrong/skipped submissions immediately — don't store them
+        await supabase.from("submissions").delete().eq("id", submission_id);
+        console.log("Verification failed — submission deleted:", submission_id, "status:", result.status);
+      }
 
       console.log("Verification completed:", submission_id, "status:", result.status);
 
@@ -604,13 +625,11 @@ Deno.serve(async (req) => {
       });
     } catch (timeoutErr: any) {
       if (timeoutErr.message === "TIMEOUT") {
-        console.log("Verification timed out:", submission_id);
-        await supabase.from("submissions").update({
-          status: "skipped",
-          error_message: "Verification timed out",
-        }).eq("id", submission_id);
+        console.log("Verification timed out — deleting submission:", submission_id);
+        // Delete on timeout — don't leave processing rows or inflate stats
+        await supabase.from("submissions").delete().eq("id", submission_id);
 
-        return new Response(JSON.stringify({ status: "skipped" }), {
+        return new Response(JSON.stringify({ status: "skipped", error_message: "Verification timed out. Please try again." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -621,16 +640,14 @@ Deno.serve(async (req) => {
 
     if (submission_id) {
       try {
-        await supabase.from("submissions").update({
-          status: "failed",
-          error_message: err.message || "Verification failed",
-        }).eq("id", submission_id);
-      } catch (updateErr) {
-        console.error("Failed to update submission status:", submission_id, updateErr);
+        // Delete on internal error — don't leave orphaned processing rows
+        await supabase.from("submissions").delete().eq("id", submission_id);
+      } catch (deleteErr) {
+        console.error("Failed to delete submission after error:", submission_id, deleteErr);
       }
     }
 
-    return new Response(JSON.stringify({ error: "Verification failed internally.", status: "failed" }), {
+    return new Response(JSON.stringify({ error: "Verification failed internally.", status: "failed", error_message: "An internal error occurred. Please try again." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

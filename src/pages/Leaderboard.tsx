@@ -14,7 +14,7 @@ type LeaderboardEntry = {
   full_name: string;
   college_name: string;
   college_id: string;
-  total_submissions: number;
+  correct_submissions: number;
   score: number;
   updated_at: string;
 };
@@ -38,8 +38,8 @@ export default function Leaderboard() {
     setLoading(true);
     let query = supabase
       .from("profiles")
-      .select("user_id, full_name, college_id, total_submissions, score, updated_at, colleges(name)")
-      .gt("total_submissions", 0)
+      .select("user_id, full_name, college_id, correct_submissions, score, updated_at, colleges(name)")
+      .gt("score", 0)
       .order("score", { ascending: false })
       .order("updated_at", { ascending: true })
       .limit(100);
@@ -149,7 +149,7 @@ export default function Leaderboard() {
                       <TableCell className="text-center">{rankIcon(i + 1)}</TableCell>
                       <TableCell className="font-medium">{e.full_name}</TableCell>
                       <TableCell className="text-muted-foreground">{e.college_name}</TableCell>
-                      <TableCell className="text-center">{e.total_submissions}</TableCell>
+                      <TableCell className="text-center">{e.correct_submissions}</TableCell>
                       <TableCell className="text-center font-bold text-primary">{(Number(e.score) * 100).toFixed(2)}</TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {format(new Date(e.updated_at), "MMM d, yyyy")}

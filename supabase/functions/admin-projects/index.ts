@@ -1,7 +1,8 @@
-// redeploy trigger
 // @ts-nocheck
 import { createClient } from "supabase";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { Ratelimit } from "npm:@upstash/ratelimit";
+import { Redis } from "npm:@upstash/redis";
 
 const weightsSchema = z.record(z.string(), z.number().min(0).max(10));
 const putSchema = z.object({
@@ -55,6 +56,29 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Rate Limiting
+    try {
+      const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+      const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+      if (upstashUrl && upstashToken) {
+        const redis = new Redis({ url: upstashUrl, token: upstashToken });
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(10, "60 s"),
+        });
+        const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+        const { success } = await ratelimit.limit(`ratelimit_projects_${ip}`);
+        if (!success) {
+          return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Rate limit check failed", err);
+    }
+
     const result = await verifyAdmin(req);
     if (!result) {
       return new Response(JSON.stringify({ error: "Forbidden" }), {
@@ -127,7 +151,7 @@ Deno.serve(async (req) => {
             .update({ weight: w })
             .eq("level", level)
             .eq("weight", oldW);
-            
+
           await supabase
             .from("submissions")
             .update({ weight: w })
@@ -274,9 +298,10 @@ Deno.serve(async (req) => {
 
   } catch (err: any) {
     console.error("Admin projects error:", err);
-    const errorMsg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err)) || "An internal error occurred.";
+    const status = err.message === "Forbidden" ? 403 : 500;
+    const errorMsg = status === 500 ? "An internal error occurred." : err.message;
     return new Response(JSON.stringify({ error: errorMsg }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

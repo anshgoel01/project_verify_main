@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { createClient } from "supabase";
+import { Ratelimit } from "npm:@upstash/ratelimit";
+import { Redis } from "npm:@upstash/redis";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
@@ -13,6 +15,29 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Rate Limiting
+    try {
+      const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+      const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+      if (upstashUrl && upstashToken) {
+        const redis = new Redis({ url: upstashUrl, token: upstashToken });
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(10, "60 s"),
+        });
+        const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+        const { success } = await ratelimit.limit(`ratelimit_admin_${ip}`);
+        if (!success) {
+          return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Rate limit check failed", err);
+    }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });

@@ -41,7 +41,8 @@ export default function Leaderboard() {
       .select("user_id, full_name, college_id, total_submissions, score, updated_at, colleges(name)")
       .gt("total_submissions", 0)
       .order("score", { ascending: false })
-      .order("updated_at", { ascending: true });
+      .order("updated_at", { ascending: true })
+      .limit(100);
 
     if (selectedCollege !== "all") {
       query = query.eq("college_id", selectedCollege);

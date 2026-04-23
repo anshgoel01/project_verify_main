@@ -1,5 +1,7 @@
 // @ts-nocheck
 import { createClient } from "supabase";
+import { Ratelimit } from "npm:@upstash/ratelimit";
+import { Redis } from "npm:@upstash/redis";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": Deno.env.get("FRONTEND_URL") || "*",
@@ -28,7 +30,7 @@ const BANDS = [
 /* ── SpreadsheetML XML builder ── */
 function generateExcelXML(
   headers: string[],
-  rows: { cells: (string | number | "")[] ; bold?: boolean }[]
+  rows: { cells: (string | number | "")[]; bold?: boolean }[]
 ) {
   const esc = (v: any) =>
     String(v)
@@ -142,6 +144,29 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Rate Limiting
+    try {
+      const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+      const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+      if (upstashUrl && upstashToken) {
+        const redis = new Redis({ url: upstashUrl, token: upstashToken });
+        const ratelimit = new Ratelimit({
+          redis,
+          limiter: Ratelimit.slidingWindow(3, "60 s"),
+        });
+        const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+        const { success } = await ratelimit.limit(`ratelimit_export_${ip}`);
+        if (!success) {
+          return new Response(JSON.stringify({ error: "Too many requests. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" }
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Rate limit check failed", err);
+    }
 
     /* ── Auth ── */
     const authHeader = req.headers.get("Authorization");
@@ -266,7 +291,7 @@ Deno.serve(async (req) => {
     const marksIdx = columnOrder.indexOf("marks");
 
     /* ── Build rows ── */
-    const rows: { cells: (string | number | "")[] ; bold?: boolean }[] = [];
+    const rows: { cells: (string | number | "")[]; bold?: boolean }[] = [];
 
     for (const p of profiles || []) {
       const userSubs = submissionsByUser.get(p.user_id) || [];
@@ -347,9 +372,11 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     console.error("Admin export error:", e);
-    return new Response(JSON.stringify({ error: "An internal server error occurred." }), {
-      status: 500,
-      headers: corsHeaders,
+    const status = e.message === "Unauthorized" ? 401 : e.message === "Forbidden" ? 403 : 500;
+    const msg = status === 500 ? "An internal server error occurred." : e.message;
+    return new Response(JSON.stringify({ error: msg }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

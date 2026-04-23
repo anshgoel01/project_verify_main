@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { createClient } from "supabase";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { Ratelimit } from "npm:@upstash/ratelimit";
+import { Redis } from "npm:@upstash/redis";
 
 const deleteSchema = z.object({
   id: z.string().uuid()
@@ -15,6 +17,27 @@ async function getAdminClient(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  // Rate Limiting
+  try {
+    const upstashUrl = Deno.env.get("UPSTASH_REDIS_REST_URL");
+    const upstashToken = Deno.env.get("UPSTASH_REDIS_REST_TOKEN");
+    if (upstashUrl && upstashToken) {
+      const redis = new Redis({ url: upstashUrl, token: upstashToken });
+      const ratelimit = new Ratelimit({
+        redis,
+        limiter: Ratelimit.slidingWindow(10, "60 s"),
+      });
+      const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+      const { success } = await ratelimit.limit(`ratelimit_submissions_${ip}`);
+      if (!success) {
+        throw new Error("RATE_LIMIT_EXCEEDED");
+      }
+    }
+  } catch (err) {
+    if (err.message === "RATE_LIMIT_EXCEEDED") throw err;
+    console.error("Rate limit check failed", err);
+  }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) throw new Error("Unauthorized");
@@ -55,12 +78,12 @@ Deno.serve(async (req: Request) => {
         });
       }
       const { id } = parsed.data;
-      
+
       const { data: submissionData } = await adminClient.from("submissions").select("*").eq("id", id).single();
 
       const { error } = await adminClient.from("submissions").delete().eq("id", id);
       if (error) throw error;
-      
+
       if (submissionData) {
         await adminClient.from("audit_logs").insert({
           admin_id: userId,
@@ -133,8 +156,13 @@ Deno.serve(async (req: Request) => {
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("Admin submissions error:", e);
-    const status = e.message === "Unauthorized" ? 401 : e.message === "Forbidden" ? 403 : 500;
-    const msg = status === 500 ? "An internal server error occurred." : e.message;
+    const status = e.message === "Unauthorized" ? 401
+      : e.message === "Forbidden" ? 403
+        : e.message === "RATE_LIMIT_EXCEEDED" ? 429
+          : 500;
+    const msg = e.message === "RATE_LIMIT_EXCEEDED" ? "Too many requests. Please try again later."
+      : status === 500 ? "An internal server error occurred."
+        : e.message;
     return new Response(JSON.stringify({ error: msg }), { status, headers: corsHeaders });
   }
 });

@@ -355,55 +355,76 @@ function AuthForm({
     return isSignUp ? "Sign Up" : "Sign In";
   };
 
+  const isSubmitting = useRef(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Block if already loading or in cooldown
-    if (isButtonDisabled) return;
+    // Synchronous ref guard — blocks re-entry before React re-renders
+    if (isSubmitting.current) return;
+    // Also block if in cooldown
+    if (cooldownSeconds > 0) return;
 
+    isSubmitting.current = true;
     setLoading(true);
-    if (!email.endsWith("@thapar.edu")) {
-      toast.error("Only @thapar.edu email addresses are allowed");
-      setLoading(false);
-      return;
-    }
-    if (isSignUp) {
-      if (!fullName || !rollNo) {
-        toast.error("Please fill in all fields");
-        setLoading(false);
+
+    try {
+      if (!email.endsWith("@thapar.edu")) {
+        toast.error("Only @thapar.edu email addresses are allowed");
         return;
       }
-      const result = await signUp(email, password, fullName, THAPAR_COLLEGE_ID, rollNo);
-      if (result.error) {
-        toast.error(result.error);
-        // Start 60-second cooldown on rate-limit errors
-        if (result.rateLimited) {
-          startCooldown(60);
+      if (isSignUp) {
+        if (!fullName || !rollNo) {
+          toast.error("Please fill in all fields");
+          return;
+        }
+        // Start cooldown BEFORE the API call to prevent any concurrent requests
+        startCooldown(60);
+        const result = await signUp(email, password, fullName, THAPAR_COLLEGE_ID, rollNo);
+        if (result.error) {
+          toast.error(result.error);
+          // Keep cooldown running on rate-limit; clear it on other errors
+          if (!result.rateLimited) {
+            // Clear the pre-emptive cooldown since it wasn't a rate-limit error
+            setCooldownSeconds(0);
+            if (cooldownRef.current) {
+              clearInterval(cooldownRef.current);
+              cooldownRef.current = null;
+            }
+          }
+        } else {
+          // Success — clear the pre-emptive cooldown
+          setCooldownSeconds(0);
+          if (cooldownRef.current) {
+            clearInterval(cooldownRef.current);
+            cooldownRef.current = null;
+          }
+          setIsVerifying(true);
+          toast.success("Signup successful! Please enter the OTP sent to your email.");
         }
       } else {
-        setIsVerifying(true);
-        toast.success("Signup successful! Please enter the OTP sent to your email.");
-      }
-    } else {
-      const { error } = await signIn(email, password);
-      if (error) { toast.error(error); setLoading(false); return; }
-      if (role === "admin") {
-        const { data: authData } = await supabase.auth.getUser();
-        if (authData?.user) {
-          const { data: roles } = await (supabase.from("user_roles" as any).select("role").eq("user_id", authData.user.id).eq("role", "admin") as any);
-          if (!roles || roles.length === 0) {
-            const { data: requests } = await (supabase.from("admin_requests" as any).select("status").eq("user_id", authData.user.id).maybeSingle() as any);
-            if (requests?.status === "pending") { toast.info("Your admin request is still pending approval."); }
-            else if (requests?.status === "rejected") { toast.error("Your admin request was rejected."); }
-            else {
-              await (supabase.from("admin_requests" as any) as any).insert({ user_id: authData.user.id });
-              toast.info("Admin access requested. Please wait for approval.");
+        const { error } = await signIn(email, password);
+        if (error) { toast.error(error); return; }
+        if (role === "admin") {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user) {
+            const { data: roles } = await (supabase.from("user_roles" as any).select("role").eq("user_id", authData.user.id).eq("role", "admin") as any);
+            if (!roles || roles.length === 0) {
+              const { data: requests } = await (supabase.from("admin_requests" as any).select("status").eq("user_id", authData.user.id).maybeSingle() as any);
+              if (requests?.status === "pending") { toast.info("Your admin request is still pending approval."); }
+              else if (requests?.status === "rejected") { toast.error("Your admin request was rejected."); }
+              else {
+                await (supabase.from("admin_requests" as any) as any).insert({ user_id: authData.user.id });
+                toast.info("Admin access requested. Please wait for approval.");
+              }
             }
           }
         }
       }
+    } finally {
+      setLoading(false);
+      isSubmitting.current = false;
     }
-    setLoading(false);
   };
 
   if (showForgot) return <ForgotPasswordForm onBack={() => setShowForgot(false)} />;

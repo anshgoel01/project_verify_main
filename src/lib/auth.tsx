@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { THAPAR_COLLEGE_ID } from "@/lib/constants";
 import type { User, Session } from "@supabase/supabase-js";
 
 type Profile = {
@@ -22,6 +23,7 @@ type AuthContextType = {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
   signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -38,18 +40,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
-    setProfile(data);
+  const fetchProfile = async (userId: string, userEmail?: string) => {
+    setProfileLoading(true);
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (data) {
+        setProfile(data);
+      } else {
+        // Auto-heal: create missing profile row for authenticated user
+        const email = userEmail || "";
+        const { error: insertErr } = await supabase.from("profiles").insert({
+          user_id: userId,
+          full_name: email.split("@")[0] || "New User",
+          email,
+          college_id: THAPAR_COLLEGE_ID,
+        });
+
+        if (!insertErr) {
+          // Re-fetch the newly created profile
+          const { data: newProfile } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("user_id", userId)
+            .maybeSingle();
+          setProfile(newProfile);
+        } else {
+          // Insert failed (e.g. RLS or duplicate) — set null, UI will handle
+          setProfile(null);
+        }
+      }
+    } catch {
+      setProfile(null);
+    } finally {
+      setProfileLoading(false);
+    }
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) await fetchProfile(user.id, user.email ?? undefined);
   };
 
   useEffect(() => {
@@ -58,9 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
+          setTimeout(() => fetchProfile(session.user.id, session.user.email ?? undefined), 0);
         } else {
           setProfile(null);
+          setProfileLoading(false);
         }
         setLoading(false);
       }
@@ -69,7 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
+      if (session?.user) {
+        fetchProfile(session.user.id, session.user.email ?? undefined);
+      } else {
+        setProfileLoading(false);
+      }
       setLoading(false);
     });
 
@@ -155,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, refreshProfile, verifyOtp, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, profileLoading, signUp, signIn, signOut, refreshProfile, verifyOtp, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

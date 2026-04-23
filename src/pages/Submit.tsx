@@ -79,16 +79,34 @@ export default function Submit() {
     setVerifiedSubmissionId(null);
 
     try {
-      const { data: existing } = await supabase
+      // Check for existing submission of same project (any status)
+      const { data: existingByProject } = await supabase
+        .from("submissions")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .eq("project_link", projectLink.trim())
+        .limit(1);
+
+      if (existingByProject && existingByProject.length > 0) {
+        const existing = existingByProject[0];
+        const statusMsg = existing.status === "correct"
+          ? "You've already submitted and verified this project."
+          : "You've already submitted this project. Check your submissions page for its status.";
+        setVerifyError(statusMsg);
+        setVerifying(false);
+        return;
+      }
+
+      // Also check by certificate link (same certificate resubmitted for a different project entry)
+      const { data: existingByCert } = await supabase
         .from("submissions")
         .select("id")
         .eq("user_id", user.id)
         .eq("coursera_link", courseraLink.trim())
-        .eq("status", "correct")
         .limit(1);
 
-      if (existing && existing.length > 0) {
-        setVerifyError("This course has already been submitted and verified.");
+      if (existingByCert && existingByCert.length > 0) {
+        setVerifyError("This certificate has already been submitted.");
         setVerifying(false);
         return;
       }
@@ -105,7 +123,15 @@ export default function Submit() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Handle unique constraint violation (PostgreSQL error code 23505)
+        if (error.code === "23505") {
+          setVerifyError("You've already submitted this project. Duplicate submissions are not allowed.");
+          setVerifying(false);
+          return;
+        }
+        throw error;
+      }
 
       const { data: result, error: fnError } = await supabase.functions.invoke(
         "verify-submission",

@@ -80,6 +80,24 @@ function extractLinkedInUsername(url: string): string {
 }
 
 /**
+ * Extract the raw slug from a LinkedIn profile URL (/in/ segment).
+ * Used as the canonical stored identity to compare against post URLs.
+ * linkedin.com/in/palak-mahajan → "palak-mahajan"
+ * linkedin.com/in/palakmahajan → "palakmahajan"
+ */
+function extractProfileSlug(url: string): string {
+  try {
+    const urlObj = new URL(url.startsWith("http") ? url : `https://${url}`);
+    const parts = urlObj.pathname.split("/").filter(Boolean);
+    if (parts[0] === "in" && parts[1]) {
+      // Normalize: lowercase, strip trailing slash, remove trailing numeric IDs
+      return normalizeText(parts[1].replace(/-[a-z0-9]{6,}$/i, "").replace(/-/g, " "));
+    }
+  } catch { /* ignore */ }
+  return "";
+}
+
+/**
  * Scrape Coursera certificate/share page.
  * Tries multiple extraction strategies in order:
  * 1. "Completed by [Name]" pattern
@@ -377,7 +395,7 @@ function timeoutPromise(ms: number): Promise<never> {
   return new Promise((_, reject) => setTimeout(() => reject(new Error("TIMEOUT")), ms));
 }
 
-async function verifySubmission(supabase: any, submission: any, userName: string): Promise<{
+async function verifySubmission(supabase: any, submission: any, userName: string, storedLinkedinSlug: string | null): Promise<{
   coursera_name: string | null;
   linkedin_username: string | null;
   coursera_course: string | null;
@@ -411,7 +429,8 @@ async function verifySubmission(supabase: any, submission: any, userName: string
 
   const { name: courseraName, course: courseraCourse } = certResult;
   const { course: projectCourse, level: detectedLevel } = projectResult;
-  const linkedinUsername = extractLinkedInUsername(submission.linkedin_link);
+  // Slug extracted from the submitted LinkedIn post URL (used throughout)
+  const postLinkedinSlug = extractLinkedInUsername(submission.linkedin_link);
 
   console.log("Verification data loaded securely.");
 
@@ -419,8 +438,19 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   let courseMatch = false;
   let errorMessage: string | null = null;
 
-  // Check if LinkedIn username matches the student profile name
-  const linkedinMatchesUser = linkedinUsername ? namesMatch(userName, linkedinUsername, 60) : false;
+  // LinkedIn identity check:
+  // If user has a stored linkedin_url (profile slug), compare post URL slug against it — exact & normalized.
+  // This is the primary, reliable check.
+  // Fall back to fuzzy name match only when no stored slug is available (old users).
+  let linkedinMatchesUser: boolean;
+  if (storedLinkedinSlug) {
+    linkedinMatchesUser = namesMatch(storedLinkedinSlug, postLinkedinSlug, 80);
+    console.log(`LinkedIn slug check: stored="${storedLinkedinSlug}" post="${postLinkedinSlug}" match=${linkedinMatchesUser}`);
+  } else {
+    // Legacy fallback: compare extracted username against full name
+    linkedinMatchesUser = postLinkedinSlug ? namesMatch(userName, postLinkedinSlug, 60) : false;
+    console.log(`LinkedIn name fallback: slug="${postLinkedinSlug}" match=${linkedinMatchesUser}`);
+  }
 
   // ✅ FIXED: if certificate name can't be read, don't auto-fail —
   // fall back to LinkedIn-only match so legitimate students aren't rejected
@@ -431,7 +461,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
       // Mark as wrong with a clear message asking for a better link
       return {
         coursera_name: null,
-        linkedin_username: linkedinUsername || null,
+        linkedin_username: postLinkedinSlug || null,
         coursera_course: courseraCourse || null,
         student_match: false,
         course_match: false,
@@ -443,7 +473,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
     }
     return {
       coursera_name: null,
-      linkedin_username: linkedinUsername || null,
+      linkedin_username: postLinkedinSlug || null,
       coursera_course: courseraCourse || null,
       student_match: false,
       course_match: false,
@@ -456,7 +486,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
 
   // ✅ FIXED: namesMatch now uses word-based matching — "anshuman goel" vs "aastha garg" = 0% → rejected
   const courseraMatchesUser = namesMatch(userName, courseraName);
-  const courseraMatchesLinkedin = linkedinUsername ? namesMatch(courseraName, linkedinUsername, 60) : false;
+  const courseraMatchesLinkedin = postLinkedinSlug ? namesMatch(courseraName, postLinkedinSlug, 60) : false;
 
   console.log("courseraMatchesUser:", courseraMatchesUser, "courseraMatchesLinkedin:", courseraMatchesLinkedin, "linkedinMatchesUser:", linkedinMatchesUser);
 
@@ -494,7 +524,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
     console.log("LinkedIn caption unavailable or too short — flagging for manual review");
     return {
       coursera_name: courseraName || null,
-      linkedin_username: linkedinUsername || null,
+      linkedin_username: postLinkedinSlug || null,
       coursera_course: courseraCourse || null,
       student_match: studentMatch,
       course_match: courseMatch,
@@ -525,7 +555,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
 
   return {
     coursera_name: courseraName || null,
-    linkedin_username: linkedinUsername || null,
+    linkedin_username: postLinkedinSlug || null,
     coursera_course: courseraCourse || null,
     student_match: studentMatch,
     course_match: courseMatch,
@@ -594,18 +624,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("user_id", submission.user_id)
-      .single();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, linkedin_url")
+    .eq("user_id", submission.user_id)
+    .single();
 
-    const userName = normalizeText(profile?.full_name || "");
-    console.log("User profile loaded securely.");
+  const userName = normalizeText(profile?.full_name || "");
+
+  // Extract stored LinkedIn profile slug (ground-truth identity)
+  const storedLinkedinUrl: string | null = (profile as any)?.linkedin_url || null;
+  const storedLinkedinSlug = storedLinkedinUrl ? extractProfileSlug(storedLinkedinUrl) : null;
+
+  console.log("User profile loaded. Stored LinkedIn slug:", storedLinkedinSlug || "(none)");
 
     try {
       const result = await Promise.race([
-        verifySubmission(supabase, submission, userName),
+        verifySubmission(supabase, submission, userName, storedLinkedinSlug),
         timeoutPromise(12000),
       ]);
 

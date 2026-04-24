@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar, Pencil, Save, X, Lock, Eye, EyeOff, LogOut, GraduationCap, IdCard } from "lucide-react";
+import { Calendar, Pencil, Save, X, Lock, Eye, EyeOff, LogOut, GraduationCap, IdCard, Linkedin } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState("");
   const [rollNo, setRollNo] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,6 +36,7 @@ export default function Profile() {
     if (profile) {
       setFullName(profile.full_name || "");
       setRollNo(profile.roll_no || "");
+      setLinkedinUrl((profile as any).linkedin_url || "");
     }
   }, [profile]);
 
@@ -43,7 +45,7 @@ export default function Profile() {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName, roll_no: rollNo })
+      .update({ full_name: fullName, roll_no: rollNo, linkedin_url: linkedinUrl.trim() || null } as any)
       .eq("user_id", profile.user_id);
     if (error) {
       toast.error("Failed to update profile");
@@ -209,6 +211,18 @@ export default function Profile() {
                 <Label htmlFor="edit-roll" className="text-xs uppercase tracking-wider text-muted-foreground">Roll Number</Label>
                 <Input id="edit-roll" value={rollNo} onChange={(e) => setRollNo(e.target.value)} className="transition-all focus:shadow-sm" />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-linkedin" className="text-xs uppercase tracking-wider text-muted-foreground">LinkedIn Profile URL</Label>
+                <Input
+                  id="edit-linkedin"
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="linkedin.com/in/your-name"
+                  className="transition-all focus:shadow-sm"
+                />
+                <p className="text-xs text-muted-foreground">Used to verify post ownership during project submissions.</p>
+              </div>
               <div className="flex gap-2 pt-1">
                 <Button onClick={handleSave} disabled={saving} size="sm" className="gap-1.5 transition-all">
                   <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Changes"}
@@ -216,7 +230,7 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo(profile.roll_no || ""); }}
+                  onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo(profile.roll_no || ""); setLinkedinUrl((profile as any).linkedin_url || ""); }}
                   className="gap-1.5 transition-colors"
                 >
                   <X className="h-4 w-4" /> Cancel
@@ -237,6 +251,26 @@ export default function Profile() {
                   <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
                   {collegeName}
                 </span>
+              )}
+              {(profile as any).linkedin_url && (
+                <a
+                  href={(profile as any).linkedin_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground hover:bg-primary/10 hover:border-primary/40 transition-colors"
+                >
+                  <Linkedin className="h-3.5 w-3.5 text-[#0A66C2]" />
+                  LinkedIn
+                </a>
+              )}
+              {!(profile as any).linkedin_url && (
+                <button
+                  onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                >
+                  <Linkedin className="h-3.5 w-3.5" />
+                  Add LinkedIn URL
+                </button>
               )}
               <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground">
                 <Calendar className="h-3.5 w-3.5 text-muted-foreground" />

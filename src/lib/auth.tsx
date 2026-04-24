@@ -10,6 +10,7 @@ type Profile = {
   email: string;
   college_id: string;
   roll_no: string | null;
+  linkedin_url: string | null;
   score: number;
   total_submissions: number;
   correct_submissions: number;
@@ -24,7 +25,7 @@ type AuthContextType = {
   profile: Profile | null;
   loading: boolean;
   profileLoading: boolean;
-  signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string, linkedinUrl?: string) => Promise<SignUpResult>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -116,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, collegeId: string, rollNo: string): Promise<SignUpResult> => {
+  const signUp = async (email: string, password: string, fullName: string, collegeId: string, rollNo: string, linkedinUrl?: string): Promise<SignUpResult> => {
     // Validate @thapar.edu
     if (!email.endsWith("@thapar.edu")) {
       return { error: "Only @thapar.edu email addresses are allowed" };
@@ -151,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         college_id: collegeId,
         roll_no: rollNo,
+        linkedin_url: linkedinUrl || null,
       });
       if (profileErr) return { error: profileErr.message };
     }

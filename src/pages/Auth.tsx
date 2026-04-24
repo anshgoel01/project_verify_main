@@ -218,10 +218,10 @@ function AuthForm({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="rollno">Roll Number</Label>
-                <Input id="rollno" value={rollNo} onChange={(e) => setRollNo(e.target.value)} required placeholder="e.g. 2024CS001" />
+                <Input id="rollno" value={rollNo} onChange={(e) => setRollNo(e.target.value)} required placeholder="e.g. 1023...." />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="linkedin-url">LinkedIn Profile URL <span className="text-muted-foreground text-xs">(optional, can add later)</span></Label>
+                <Label htmlFor="linkedin-url">LinkedIn Profile URL</Label>
                 <Input
                   id="linkedin-url"
                   type="url"

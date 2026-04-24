@@ -448,7 +448,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   } else {
     check1 = namesMatch(storedLinkedinSlug, postLinkedinSlug, 80);
     if (!check1) {
-      check1Error = "LinkedIn post URL does not match the LinkedIn profile on your account.";
+      check1Error = "LinkedIn post URL does not match your LinkedIn profile.";
     }
   }
   const linkedinMatchesUser = check1;
@@ -489,9 +489,11 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   // Check 2 — Certificate name vs signup name
   const courseraMatchesUser = namesMatch(userName, courseraName);
   const check2 = courseraMatchesUser;
-  const courseraMatchesLinkedin = postLinkedinSlug ? namesMatch(courseraName, postLinkedinSlug, 60) : false;
+  // const courseraMatchesLinkedin = postLinkedinSlug ? namesMatch(courseraName, postLinkedinSlug, 60) : false;
 
-  console.log("courseraMatchesUser:", courseraMatchesUser, "courseraMatchesLinkedin:", courseraMatchesLinkedin, "linkedinMatchesUser:", linkedinMatchesUser);
+  console.log("Check1 LinkedIn match:", check1);
+  console.log("Check2 Certificate match:", check2);
+  console.log("courseraMatchesUser:", courseraMatchesUser, "linkedinMatchesUser:", linkedinMatchesUser);
 
   // studentMatch = Check 1 AND Check 2
   studentMatch = check1 && check2;
@@ -549,7 +551,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   const status = studentMatch && courseMatch && projectNameMatch && linkedinCaptionMatch ? "correct" : "wrong";
   if (status === "wrong" && !errorMessage) {
     if (!studentMatch) {
-      errorMessage = !check1 ? check1Error : "Name on certificate does not match the name on your account.";
+      errorMessage = !check1 ? check1Error : "Name on certificate does not match your account name.";
     } else if (!courseMatch) {
       errorMessage = "Could not verify the course from the certificate link.";
     }

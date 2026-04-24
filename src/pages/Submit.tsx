@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Flag, Info, AlertTriangle } from "lucide-react";
+import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Flag, Info, AlertTriangle, Linkedin } from "lucide-react";
 import ReportIssueDialog from "@/components/ReportIssueDialog";
 
 const submissionSchema = z.object({
@@ -32,7 +32,7 @@ type FormErrors = {
 };
 
 export default function Submit() {
-  const { user, profile } = useAuth();
+  const { user, profile, profileLoading } = useAuth();
   const navigate = useNavigate();
   const [courseraLink, setCourseraLink] = useState("");
   const [linkedinLink, setLinkedinLink] = useState("");
@@ -346,11 +346,20 @@ export default function Submit() {
               </Alert>
             )}
 
+            {!profileLoading && !profile?.linkedin_url && (
+              <Alert variant="destructive" className="mb-4">
+                <Linkedin className="h-4 w-4" />
+                <AlertDescription>
+                  You haven't added your LinkedIn Profile URL yet. Please go to your <Button variant="link" className="p-0 h-auto text-destructive underline" onClick={() => navigate("/profile")}>Profile</Button> and add it before submitting.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {!verified ? (
               <Button
                 type="button"
                 className="w-full"
-                disabled={verifying || !linksValid}
+                disabled={verifying || !linksValid || !profile?.linkedin_url}
                 onClick={handleVerify}
               >
                 {verifying ? (

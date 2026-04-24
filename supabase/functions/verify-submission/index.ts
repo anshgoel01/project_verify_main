@@ -432,25 +432,26 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   // Slug extracted from the submitted LinkedIn post URL (used throughout)
   const postLinkedinSlug = extractLinkedInUsername(submission.linkedin_link);
 
-  console.log("Verification data loaded securely.");
+  console.log(`Verification started for user: ${userName}`);
+  console.log(`Stored LinkedIn slug: "${storedLinkedinSlug}"`);
+  console.log(`Post LinkedIn slug: "${postLinkedinSlug}"`);
 
   let studentMatch = false;
   let courseMatch = false;
   let errorMessage: string | null = null;
 
-  // LinkedIn identity check:
-  // If user has a stored linkedin_url (profile slug), compare post URL slug against it — exact & normalized.
-  // This is the primary, reliable check.
-  // Fall back to fuzzy name match only when no stored slug is available (old users).
-  let linkedinMatchesUser: boolean;
-  if (storedLinkedinSlug) {
-    linkedinMatchesUser = namesMatch(storedLinkedinSlug, postLinkedinSlug, 80);
-    console.log(`LinkedIn slug check: stored="${storedLinkedinSlug}" post="${postLinkedinSlug}" match=${linkedinMatchesUser}`);
+  // Check 1 — LinkedIn slug match
+  let check1 = false;
+  let check1Error: string | null = null;
+  if (!storedLinkedinSlug) {
+    check1Error = "No LinkedIn profile URL found on your account. Please update your profile.";
   } else {
-    // Legacy fallback: compare extracted username against full name
-    linkedinMatchesUser = postLinkedinSlug ? namesMatch(userName, postLinkedinSlug, 60) : false;
-    console.log(`LinkedIn name fallback: slug="${postLinkedinSlug}" match=${linkedinMatchesUser}`);
+    check1 = namesMatch(storedLinkedinSlug, postLinkedinSlug, 80);
+    if (!check1) {
+      check1Error = "LinkedIn post URL does not match the LinkedIn profile on your account.";
+    }
   }
+  const linkedinMatchesUser = check1;
 
   // ✅ FIXED: if certificate name can't be read, don't auto-fail —
   // fall back to LinkedIn-only match so legitimate students aren't rejected
@@ -485,14 +486,15 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   }
 
   // ✅ FIXED: namesMatch now uses word-based matching — "anshuman goel" vs "aastha garg" = 0% → rejected
+  // Check 2 — Certificate name vs signup name
   const courseraMatchesUser = namesMatch(userName, courseraName);
+  const check2 = courseraMatchesUser;
   const courseraMatchesLinkedin = postLinkedinSlug ? namesMatch(courseraName, postLinkedinSlug, 60) : false;
 
   console.log("courseraMatchesUser:", courseraMatchesUser, "courseraMatchesLinkedin:", courseraMatchesLinkedin, "linkedinMatchesUser:", linkedinMatchesUser);
 
-  // Certificate name must match the student's profile name
-  // AND either LinkedIn matches the user OR LinkedIn matches the certificate name
-  studentMatch = courseraMatchesUser && (linkedinMatchesUser || courseraMatchesLinkedin);
+  // studentMatch = Check 1 AND Check 2
+  studentMatch = check1 && check2;
 
   // courseMatch: certificate must show a readable course name
   courseMatch = !!courseraCourse && courseraCourse.length > 3;
@@ -547,7 +549,7 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   const status = studentMatch && courseMatch && projectNameMatch && linkedinCaptionMatch ? "correct" : "wrong";
   if (status === "wrong" && !errorMessage) {
     if (!studentMatch) {
-      errorMessage = "Name on certificate/LinkedIn does not match your profile.";
+      errorMessage = !check1 ? check1Error : "Name on certificate does not match the name on your account.";
     } else if (!courseMatch) {
       errorMessage = "Could not verify the course from the certificate link.";
     }
@@ -636,7 +638,17 @@ Deno.serve(async (req) => {
   const storedLinkedinUrl: string | null = profile?.linkedin_url || null;
   const storedLinkedinSlug = storedLinkedinUrl ? extractProfileSlug(storedLinkedinUrl) : null;
 
-  console.log("User profile loaded. Stored LinkedIn slug:", storedLinkedinSlug || "(none)");
+  console.log(`User profile loaded. Stored LinkedIn slug: "${storedLinkedinSlug || "(none)"}"`);
+
+  if (!storedLinkedinSlug) {
+    console.log("Blocking verification: No LinkedIn profile URL found on user account.");
+    return new Response(JSON.stringify({ 
+      status: "wrong", 
+      error_message: "No LinkedIn profile URL found on your account. Please update your profile with your LinkedIn profile link before submitting." 
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
     try {
       const result = await Promise.race([

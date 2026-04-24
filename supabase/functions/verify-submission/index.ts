@@ -583,7 +583,7 @@ Deno.serve(async (req) => {
       const redis = new Redis({ url: upstashUrl, token: upstashToken });
       const ratelimit = new Ratelimit({
         redis,
-        limiter: Ratelimit.slidingWindow(5, "60 s"),
+        limiter: Ratelimit.slidingWindow(20, "60 s"),
       });
       const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
       const { success } = await ratelimit.limit(`ratelimit_${ip}`);
@@ -628,29 +628,29 @@ Deno.serve(async (req) => {
       });
     }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, linkedin_url")
-    .eq("user_id", submission.user_id)
-    .single();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, linkedin_url")
+      .eq("user_id", submission.user_id)
+      .single();
 
-  const userName = normalizeText(profile?.full_name || "");
+    const userName = normalizeText(profile?.full_name || "");
 
-  // Extract stored LinkedIn profile slug (ground-truth identity)
-  const storedLinkedinUrl: string | null = profile?.linkedin_url || null;
-  const storedLinkedinSlug = storedLinkedinUrl ? extractProfileSlug(storedLinkedinUrl) : null;
+    // Extract stored LinkedIn profile slug (ground-truth identity)
+    const storedLinkedinUrl: string | null = profile?.linkedin_url || null;
+    const storedLinkedinSlug = storedLinkedinUrl ? extractProfileSlug(storedLinkedinUrl) : null;
 
-  console.log(`User profile loaded. Stored LinkedIn slug: "${storedLinkedinSlug || "(none)"}"`);
+    console.log(`User profile loaded. Stored LinkedIn slug: "${storedLinkedinSlug || "(none)"}"`);
 
-  if (!storedLinkedinSlug) {
-    console.log("Blocking verification: No LinkedIn profile URL found on user account.");
-    return new Response(JSON.stringify({ 
-      status: "wrong", 
-      error_message: "No LinkedIn profile URL found on your account. Please update your profile with your LinkedIn profile link before submitting." 
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+    if (!storedLinkedinSlug) {
+      console.log("Blocking verification: No LinkedIn profile URL found on user account.");
+      return new Response(JSON.stringify({
+        status: "wrong",
+        error_message: "No LinkedIn profile URL found on your account. Please update your profile with your LinkedIn profile link before submitting."
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     try {
       const result = await Promise.race([

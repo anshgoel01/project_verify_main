@@ -64,6 +64,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          linkedin_url: string | null
           roll_no: string | null
           score: number
           total_submissions: number
@@ -77,6 +78,7 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          linkedin_url?: string | null
           roll_no?: string | null
           score?: number
           total_submissions?: number
@@ -90,6 +92,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          linkedin_url?: string | null
           roll_no?: string | null
           score?: number
           total_submissions?: number

@@ -36,7 +36,7 @@ export default function Profile() {
     if (profile) {
       setFullName(profile.full_name || "");
       setRollNo(profile.roll_no || "");
-      setLinkedinUrl((profile as any).linkedin_url || "");
+      setLinkedinUrl(profile.linkedin_url || "");
     }
   }, [profile]);
 
@@ -45,7 +45,7 @@ export default function Profile() {
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ full_name: fullName, roll_no: rollNo, linkedin_url: linkedinUrl.trim() || null } as any)
+      .update({ full_name: fullName, roll_no: rollNo, linkedin_url: linkedinUrl.trim() || null })
       .eq("user_id", profile.user_id);
     if (error) {
       toast.error("Failed to update profile");
@@ -230,7 +230,7 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo(profile.roll_no || ""); setLinkedinUrl((profile as any).linkedin_url || ""); }}
+                  onClick={() => { setEditing(false); setFullName(profile.full_name); setRollNo(profile.roll_no || ""); setLinkedinUrl(profile.linkedin_url || ""); }}
                   className="gap-1.5 transition-colors"
                 >
                   <X className="h-4 w-4" /> Cancel
@@ -252,9 +252,9 @@ export default function Profile() {
                   {collegeName}
                 </span>
               )}
-              {(profile as any).linkedin_url && (
+              {profile.linkedin_url && (
                 <a
-                  href={(profile as any).linkedin_url}
+                  href={profile.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-sm text-foreground hover:bg-primary/10 hover:border-primary/40 transition-colors"
@@ -263,7 +263,7 @@ export default function Profile() {
                   LinkedIn
                 </a>
               )}
-              {!(profile as any).linkedin_url && (
+              {!profile.linkedin_url && (
                 <button
                   onClick={() => setEditing(true)}
                   className="flex items-center gap-1.5 rounded-full border border-dashed border-border bg-muted/50 px-3 py-1 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-colors"

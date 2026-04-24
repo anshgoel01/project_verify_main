@@ -633,7 +633,7 @@ Deno.serve(async (req) => {
   const userName = normalizeText(profile?.full_name || "");
 
   // Extract stored LinkedIn profile slug (ground-truth identity)
-  const storedLinkedinUrl: string | null = (profile as any)?.linkedin_url || null;
+  const storedLinkedinUrl: string | null = profile?.linkedin_url || null;
   const storedLinkedinSlug = storedLinkedinUrl ? extractProfileSlug(storedLinkedinUrl) : null;
 
   console.log("User profile loaded. Stored LinkedIn slug:", storedLinkedinSlug || "(none)");

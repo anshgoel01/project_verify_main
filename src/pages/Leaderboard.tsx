@@ -117,7 +117,32 @@ export default function Leaderboard() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">Rank</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead>College</TableHead>
+                    <TableHead className="text-center">Submissions</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead>Last Activity</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...Array(10)].map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell><div className="h-4 w-4 bg-muted animate-pulse rounded mx-auto" /></TableCell>
+                      <TableCell><div className="h-4 w-32 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-40 bg-muted animate-pulse rounded" /></TableCell>
+                      <TableCell><div className="h-4 w-12 bg-muted animate-pulse rounded mx-auto" /></TableCell>
+                      <TableCell><div className="h-4 w-16 bg-muted animate-pulse rounded mx-auto" /></TableCell>
+                      <TableCell><div className="h-4 w-24 bg-muted animate-pulse rounded" /></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : entries.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No submissions yet. Be the first!</p>
           ) : (

@@ -390,6 +390,8 @@ export default function Submit() {
           <img
             src={helpModal?.image}
             alt={helpModal?.title}
+            width={800}
+            height={450}
             className="w-full rounded-md border aspect-video object-cover bg-muted"
           />
         </DialogContent>

@@ -5,12 +5,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Trophy, Zap, Shield, Bot, BarChart3,
   Lock, Upload, Cpu, ArrowRight, Users, FileCheck, Medal, Clock
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import SectionBadge from "@/components/landing/SectionBadge";
+import { useAuth } from "@/lib/auth";
 
 /* ── animation helpers ── */
 const easeOut = [0.22, 1, 0.36, 1] as [number, number, number, number];
@@ -69,7 +76,7 @@ const features = [
   { icon: Zap, title: "Instant Verification", desc: "Get results in seconds, not hours.", iconBg: "bg-amber-500/10", iconColor: "text-amber-500" },
   { icon: Trophy, title: "Real-time Leaderboard", desc: "Scores update live as submissions are verified.", iconBg: "bg-yellow-500/10", iconColor: "text-yellow-500" },
   { icon: Shield, title: "Admin Dashboard", desc: "Faculty can monitor all submissions and manage projects.", iconBg: "bg-purple-500/10", iconColor: "text-purple-500" },
-  { icon: BarChart3, title: "Level-based Scoring", desc: "Projects are weighted by difficulty: Beginner, Intermediate, Advanced.", iconBg: "bg-green-500/10", iconColor: "text-green-500" },
+  { icon: BarChart3, title: "Relative Percentile Grading", desc: "Final marks (out of 8) are awarded relatively based on your rank compared to your peers.", iconBg: "bg-green-500/10", iconColor: "text-green-500" },
   { icon: Lock, title: "Secure & Fair", desc: "Every submission is verified independently with no manual bias.", iconBg: "bg-red-500/10", iconColor: "text-red-500" },
 ];
 
@@ -80,6 +87,21 @@ const steps = [
 ];
 
 const techStack = ["React", "TypeScript", "Vercel", "Tailwind CSS", "shadcn/ui", "PostgreSQL", "Vite"];
+
+const faqs = [
+  {
+    question: "How does the AI verification work?",
+    answer: "Our system uses advanced AI to scan your Coursera certificate, verify your project link, and check your LinkedIn post. It ensures your name matches, the course level is accurate, and the submission is completely legitimate."
+  },
+  {
+    question: "How are the marks calculated?",
+    answer: "We use a true relative grading system (percentile banding). You earn a raw score based on project difficulty. At the end, students are ranked by raw score into percentiles, and final marks (out of 8) are awarded based on how you compare to your peers."
+  },
+  {
+    question: "Why isn’t my Coursera link working?",
+    answer: "Make sure the link you’re submitting is specifically from a Coursera Guided Project. This platform only accepts Guided Project links, so regular course links, specializations, or certificates won’t work here"
+  }
+];
 
 type TopEntry = { full_name: string; score: number };
 
@@ -95,6 +117,7 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 export default function Landing() {
+  const { user } = useAuth();
   const [studentCount, setStudentCount] = useState(0);
   const [projectCount, setProjectCount] = useState(0);
   const [topEntries, setTopEntries] = useState<TopEntry[]>([]);
@@ -153,7 +176,7 @@ export default function Landing() {
             <motion.div custom={3} initial="hidden" animate="visible" variants={heroVariants}
               className="flex gap-3 justify-center md:justify-start">
               <Button size="lg" asChild className="h-10 px-6 text-sm rounded-md shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all duration-200">
-                <Link to="/auth">Get Started</Link>
+                <Link to={user ? "/submit" : "/auth"}>Get Started</Link>
               </Button>
               <Button size="lg" variant="outline" asChild className="h-10 px-6 text-sm rounded-md">
                 <Link to="/leaderboard">View Leaderboard</Link>
@@ -356,6 +379,31 @@ export default function Landing() {
         </motion.div>
       </section>
 
+      {/* ─── FAQ ─── */}
+      <section className="container py-10 md:py-14">
+        <SectionBadge label="FAQ" />
+        <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} custom={0} variants={fadeUp}
+          className="text-2xl font-bold text-center text-foreground mb-10 mt-4">
+          Frequently Asked Questions
+        </motion.h2>
+
+        <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} custom={1} variants={fadeUp}
+          className="max-w-3xl mx-auto">
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem key={index} value={`item-${index}`} className="border rounded-lg px-4 bg-card shadow-sm shadow-primary/5">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline hover:text-primary transition-colors">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </motion.div>
+      </section>
+
       {/* ─── FINAL CTA ─── */}
       <section className="bg-secondary/40 py-10 md:py-14">
         <div className="container text-center space-y-4">
@@ -371,7 +419,7 @@ export default function Landing() {
           <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} custom={2} variants={fadeUp}
             className="flex justify-center gap-3 pt-2">
             <Button size="lg" asChild className="h-10 px-6 text-sm rounded-md shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 hover:scale-105 transition-all duration-200">
-              <Link to="/auth">Get Started</Link>
+              <Link to={user ? "/submit" : "/auth"}>Get Started</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="h-10 px-6 text-sm rounded-md">
               <Link to="/leaderboard">View Leaderboard</Link>

@@ -36,18 +36,8 @@ export default function MySubmissions() {
     if (data) setSubmissions(data);
     setLoading(false);
   };
-
   useEffect(() => {
     fetchSubmissions();
-
-    const channel = supabase
-      .channel("my-submissions")
-      .on("postgres_changes", { event: "*", schema: "public", table: "submissions", filter: `user_id=eq.${user?.id}` }, () => {
-        fetchSubmissions();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const levelOrder = ["Beginner", "Intermediate", "Advanced", "Mixed"];

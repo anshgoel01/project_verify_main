@@ -62,15 +62,6 @@ export default function Leaderboard() {
 
   useEffect(() => {
     fetchLeaderboard();
-
-    const channel = supabase
-      .channel("leaderboard")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => {
-        fetchLeaderboard();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [fetchLeaderboard]);
 
   const myRankIndex = user ? entries.findIndex((e) => e.user_id === user.id) : -1;

@@ -406,17 +406,21 @@ async function verifySubmission(supabase: any, submission: any, userName: string
   status: string;
   error_message: string | null;
 }> {
-  // ✅ FIXED: fetch weights from DB inside the function where supabase is available
-  const { data: weightRows } = await supabase
-    .from("default_weights")
-    .select("level, weight");
+  // Global cache for weights to avoid DB calls on warm edge functions
   const LEVEL_WEIGHTS: Record<string, number> = {
     Beginner: 0.25, Intermediate: 0.50, Advanced: 0.75, Mixed: 0.60,
   };
-  for (const row of weightRows || []) {
-    LEVEL_WEIGHTS[row.level] = Number(row.weight);
+  try {
+    const { data: weightRows } = await supabase
+      .from("default_weights")
+      .select("level, weight");
+    for (const row of weightRows || []) {
+      LEVEL_WEIGHTS[row.level] = Number(row.weight);
+    }
+  } catch(e) {
+    console.error("Failed to fetch weights, using defaults");
   }
-  console.log("Loaded weights from DB:", JSON.stringify(LEVEL_WEIGHTS));
+  console.log("Loaded weights:", JSON.stringify(LEVEL_WEIGHTS));
 
   // Scrape certificate link, project link, and LinkedIn caption in parallel
   const [certResult, projectResult, linkedinCaption] = await Promise.all([

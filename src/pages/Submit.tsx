@@ -10,8 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Flag, Info, AlertTriangle, Linkedin } from "lucide-react";
-import ReportIssueDialog from "@/components/ReportIssueDialog";
+import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Info, AlertTriangle, Linkedin, Mail } from "lucide-react";
 
 const submissionSchema = z.object({
   courseraLink: z.string()
@@ -43,7 +42,6 @@ export default function Submit() {
   const [verifyError, setVerifyError] = useState("");
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [verifiedSubmissionId, setVerifiedSubmissionId] = useState<string | null>(null);
-  const [reportOpen, setReportOpen] = useState(false);
   const [helpModal, setHelpModal] = useState<{ title: string; image: string } | null>(null);
   const [showLinkedInTip, setShowLinkedInTip] = useState(false);
   const [linkedinFocused, setLinkedinFocused] = useState(false);
@@ -320,21 +318,22 @@ export default function Submit() {
             </div>
 
             {verifyError && (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
-                <AlertDescription>{verifyError}</AlertDescription>
+              <Alert variant="destructive" className="flex flex-col gap-3">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 mt-0.5" />
+                  <AlertDescription>{verifyError}</AlertDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full gap-2 bg-destructive-foreground/10 hover:bg-destructive-foreground/20 border-none text-destructive-foreground"
+                  onClick={() => window.location.href = "mailto:verifyhubb@gmail.com"}
+                >
+                  <Mail className="h-4 w-4" />
+                  Report an Issue : verifyhubb@gmail.com
+                </Button>
               </Alert>
-            )}
-
-            {verifyError && (
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => setReportOpen(true)}
-              >
-                <Flag className="h-4 w-4" /> Report an Issue
-              </Button>
             )}
 
             {verified && (
@@ -381,13 +380,7 @@ export default function Submit() {
         </CardContent>
       </Card>
 
-      <ReportIssueDialog
-        open={reportOpen}
-        onOpenChange={setReportOpen}
-        courseraLink={courseraLink}
-        linkedinLink={linkedinLink}
-        projectLink={projectLink}
-      />
+
 
       <Dialog open={!!helpModal} onOpenChange={(open) => !open && setHelpModal(null)}>
         <DialogContent className="max-w-lg">

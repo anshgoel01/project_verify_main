@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
     const correctCount = submissions.filter((s: any) => s.status === "correct").length;
     const wrongCount = submissions.filter((s: any) => s.status === "wrong").length;
     const processingCount = submissions.filter((s: any) => s.status === "processing").length;
-    const skippedCount = submissions.filter((s: any) => s.status === "skipped" || s.status === "failed").length;
+    const skippedCount = submissions.filter((s: any) => s.status === "skipped" || s.status === "failed" || s.status === "error").length;
 
     // ✅ Level counts from correct submissions only
     const levelCounts: Record<string, number> = { Beginner: 0, Intermediate: 0, Advanced: 0, Mixed: 0 };

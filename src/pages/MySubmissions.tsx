@@ -30,14 +30,9 @@ function StatusBadge({ status }: { status: string }) {
       <XCircle className="h-3.5 w-3.5" /> Rejected
     </span>
   );
-  if (status === "skipped") return (
+  if (status === "skipped" || status === "error" || status === "failed") return (
     <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-500">
-      <SkipForward className="h-3.5 w-3.5" /> Needs Review
-    </span>
-  );
-  if (status === "failed") return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-      <Clock className="h-3.5 w-3.5" /> Failed
+      <SkipForward className="h-3.5 w-3.5" /> Needs Review / Error
     </span>
   );
   return <span className="text-xs text-muted-foreground">{status}</span>;

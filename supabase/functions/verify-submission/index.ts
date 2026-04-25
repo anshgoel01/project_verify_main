@@ -644,9 +644,11 @@ Deno.serve(async (req) => {
 
     if (!storedLinkedinSlug) {
       console.log("Blocking verification: No LinkedIn profile URL found on user account.");
+      const error_message = "No LinkedIn profile URL found on your account. Please update your profile with your LinkedIn profile link before submitting.";
+      await supabase.from("submissions").update({ status: "wrong", error_message }).eq("id", submission_id).eq("status", "processing");
       return new Response(JSON.stringify({
         status: "wrong",
-        error_message: "No LinkedIn profile URL found on your account. Please update your profile with your LinkedIn profile link before submitting."
+        error_message
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -660,12 +662,12 @@ Deno.serve(async (req) => {
 
       if (result.status === "correct") {
         // Only persist the submission when it's verified correct
-        await supabase.from("submissions").update({ ...result }).eq("id", submission_id);
+        await supabase.from("submissions").update({ ...result }).eq("id", submission_id).eq("status", "processing");
         console.log("Verification passed — submission saved:", submission_id);
       } else {
-        // Delete failed/wrong/skipped submissions immediately — don't store them
-        await supabase.from("submissions").delete().eq("id", submission_id);
-        console.log("Verification failed — submission deleted:", submission_id, "status:", result.status);
+        // Always update failed/wrong/skipped submissions — store them for debugging
+        await supabase.from("submissions").update({ ...result }).eq("id", submission_id).eq("status", "processing");
+        console.log("Verification failed — submission updated:", submission_id, "status:", result.status);
       }
 
       console.log("Verification completed:", submission_id, "status:", result.status);
@@ -675,9 +677,9 @@ Deno.serve(async (req) => {
       });
     } catch (timeoutErr: any) {
       if (timeoutErr.message === "TIMEOUT") {
-        console.log("Verification timed out — deleting submission:", submission_id);
-        // Delete on timeout — don't leave processing rows or inflate stats
-        await supabase.from("submissions").delete().eq("id", submission_id);
+        console.log("Verification timed out — marking submission as skipped:", submission_id);
+        // Mark as skipped on timeout — don't delete them
+        await supabase.from("submissions").update({ status: "skipped", error_message: "Verification timed out. Please try again." }).eq("id", submission_id).eq("status", "processing");
 
         return new Response(JSON.stringify({ status: "skipped", error_message: "Verification timed out. Please try again." }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -690,10 +692,10 @@ Deno.serve(async (req) => {
 
     if (submission_id) {
       try {
-        // Delete on internal error — don't leave orphaned processing rows
-        await supabase.from("submissions").delete().eq("id", submission_id);
-      } catch (deleteErr) {
-        console.error("Failed to delete submission after error:", submission_id, deleteErr);
+        // Update on internal error — don't delete
+        await supabase.from("submissions").update({ status: "error", error_message: "An internal error occurred. Please try again." }).eq("id", submission_id).eq("status", "processing");
+      } catch (updateErr) {
+        console.error("Failed to update submission after error:", submission_id, updateErr);
       }
     }
 

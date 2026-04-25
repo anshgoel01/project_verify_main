@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Loader2, MapPin } from "lucide-react";
+import { Trophy, Medal, Loader2, MapPin, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 
 type LeaderboardEntry = {
@@ -25,6 +25,12 @@ export default function Leaderboard() {
   const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
   const [selectedCollege, setSelectedCollege] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalEntries, setTotalEntries] = useState(0);
+  const PAGE_SIZE = 100;
+
   const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
 
@@ -34,34 +40,40 @@ export default function Leaderboard() {
     });
   }, []);
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLoading(true);
+  const fetchLeaderboard = useCallback(async (pageNum = 1, isLoadMore = false) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setLoading(true);
+
     let query = supabase
       .from("profiles")
-      .select("user_id, full_name, college_id, correct_submissions, score, updated_at, colleges(name)")
+      .select("user_id, full_name, college_id, correct_submissions, score, updated_at, colleges(name)", { count: "exact" })
       .gt("score", 0)
       .order("score", { ascending: false })
       .order("updated_at", { ascending: true })
-      .limit(100);
+      .range((pageNum - 1) * PAGE_SIZE, pageNum * PAGE_SIZE - 1);
 
     if (selectedCollege !== "all") {
       query = query.eq("college_id", selectedCollege);
     }
 
-    const { data } = await query;
+    const { data, count } = await query;
     if (data) {
-      setEntries(
-        data.map((d: any) => ({
-          ...d,
-          college_name: d.colleges?.name || "Unknown",
-        }))
-      );
+      const newEntries = data.map((d: any) => ({
+        ...d,
+        college_name: d.colleges?.name || "Unknown",
+      }));
+      setEntries((prev) => (isLoadMore ? [...prev, ...newEntries] : newEntries));
+      setHasMore(data.length === PAGE_SIZE);
+      if (count !== null) setTotalEntries(count);
     }
-    setLoading(false);
+
+    if (isLoadMore) setLoadingMore(false);
+    else setLoading(false);
   }, [selectedCollege]);
 
   useEffect(() => {
-    fetchLeaderboard();
+    setPage(1);
+    fetchLeaderboard(1, false);
   }, [fetchLeaderboard]);
 
   const myRankIndex = user ? entries.findIndex((e) => e.user_id === user.id) : -1;
@@ -174,6 +186,49 @@ export default function Leaderboard() {
                   ))}
                 </TableBody>
               </Table>
+
+              {/* Kaggle style footer */}
+              {totalEntries > PAGE_SIZE && (
+                <div className="flex items-center py-6 border-t mt-4 text-sm text-muted-foreground bg-card gap-4 pl-4">
+                  <div>
+                    {entries.length} - {totalEntries}
+                  </div>
+                  <div>
+                    {hasMore ? (
+                      <Button
+                        variant="outline"
+                        className="rounded-full px-6 bg-background shadow-sm hover:bg-muted/50 transition-colors"
+                        onClick={() => {
+                          const nextPage = page + 1;
+                          setPage(nextPage);
+                          fetchLeaderboard(nextPage, true);
+                        }}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ChevronDown className="mr-2 h-4 w-4" />
+                        )}
+                        See {totalEntries - entries.length} More
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="rounded-full px-6 bg-background shadow-sm hover:bg-muted/50 transition-colors"
+                        onClick={() => {
+                          setPage(1);
+                          fetchLeaderboard(1, false);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                      >
+                        <ChevronUp className="mr-2 h-4 w-4" />
+                        Show Less
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

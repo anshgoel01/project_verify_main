@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, ExternalLink, ChevronDown, CheckCircle2, XCircle, Clock, SkipForward } from "lucide-react";
+import { Loader2, ExternalLink, ChevronDown, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
@@ -19,31 +19,11 @@ type Submission = {
   level: string | null;
 };
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "correct") return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
-      <CheckCircle2 className="h-3.5 w-3.5" /> Accepted
-    </span>
-  );
-  if (status === "wrong") return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-500">
-      <XCircle className="h-3.5 w-3.5" /> Rejected
-    </span>
-  );
-  if (status === "skipped" || status === "error" || status === "failed") return (
-    <span className="inline-flex items-center gap-1 text-xs font-medium text-yellow-500">
-      <SkipForward className="h-3.5 w-3.5" /> Needs Review / Error
-    </span>
-  );
-  return <span className="text-xs text-muted-foreground">{status}</span>;
-}
-
 export default function MySubmissions() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [showRejected, setShowRejected] = useState(false);
 
   const fetchSubmissions = async () => {
     if (!user) return;
@@ -80,7 +60,6 @@ export default function MySubmissions() {
 
   // Only count/display correct submissions as "accepted"
   const correctSubmissions = submissions.filter(s => s.status === "correct");
-  const rejectedSubmissions = submissions.filter(s => s.status !== "correct");
 
   const groupedByLevel = correctSubmissions.reduce<Record<string, Submission[]>>((acc, s) => {
     const level = s.level || "Mixed";
@@ -186,57 +165,6 @@ export default function MySubmissions() {
         )}
       </div>
 
-      {/* ── Rejected/failed submissions (collapsible, not counted as accepted) ── */}
-      {rejectedSubmissions.length > 0 && (
-        <Collapsible open={showRejected} onOpenChange={setShowRejected}>
-          <CollapsibleTrigger asChild>
-            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <XCircle className="h-4 w-4 text-red-400" />
-              <span>Rejected / Failed ({rejectedSubmissions.length})</span>
-              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showRejected ? "rotate-180" : ""}`} />
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <Card className="mt-2 border-dashed border-muted-foreground/30">
-              <CardContent className="pt-4">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Course</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Links</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rejectedSubmissions.map((s) => (
-                        <TableRow key={s.id} className="opacity-70">
-                          <TableCell className="whitespace-nowrap text-xs">{format(new Date(s.created_at), "MMM d, yyyy HH:mm")}</TableCell>
-                          <TableCell className="max-w-[160px] truncate text-xs">{s.coursera_course || "—"}</TableCell>
-                          <TableCell><StatusBadge status={s.status} /></TableCell>
-                          <TableCell className="max-w-[220px] text-xs text-muted-foreground">{s.error_message || "—"}</TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <a href={s.coursera_link} target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                              <a href={s.linkedin_link} target="_blank" rel="noopener" className="text-muted-foreground hover:text-primary">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                              </a>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
     </div>
   );
 }

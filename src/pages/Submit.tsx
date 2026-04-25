@@ -77,19 +77,20 @@ export default function Submit() {
     setVerifiedSubmissionId(null);
 
     try {
-      // Check for existing submission of same project (any status)
+      // Check for existing submission of same project (only block if correct or processing)
       const { data: existingByProject } = await supabase
         .from("submissions")
         .select("id, status")
         .eq("user_id", user.id)
         .eq("project_link", projectLink.trim())
+        .in("status", ["correct", "processing"])
         .limit(1);
 
       if (existingByProject && existingByProject.length > 0) {
         const existing = existingByProject[0];
         const statusMsg = existing.status === "correct"
           ? "You've already submitted and verified this project."
-          : "You've already submitted this project. Check your submissions page for its status.";
+          : "Your submission for this project is currently processing.";
         setVerifyError(statusMsg);
         setVerifying(false);
         return;
@@ -101,10 +102,11 @@ export default function Submit() {
         .select("id")
         .eq("user_id", user.id)
         .eq("coursera_link", courseraLink.trim())
+        .in("status", ["correct", "processing"])
         .limit(1);
 
       if (existingByCert && existingByCert.length > 0) {
-        setVerifyError("This certificate has already been submitted.");
+        setVerifyError("This certificate has already been submitted and verified (or is currently processing).");
         setVerifying(false);
         return;
       }

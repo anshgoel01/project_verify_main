@@ -145,7 +145,6 @@ export default function Submit() {
         setVerifiedSubmissionId(submission.id);
         setVerifyError("");
       } else {
-        await supabase.from("submissions").delete().eq("id", submission.id);
         setVerifyError(
           result?.error_message || "Verification failed — name on certificate/LinkedIn does not match your profile, or the certificate could not be read. Please check your links and try again."
         );

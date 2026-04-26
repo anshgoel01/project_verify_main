@@ -236,53 +236,57 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── GET ── sync projects from submissions then return all
-    const { data: submissions, error: subErr } = await supabase
-      .from("submissions")
-      .select("coursera_course, level")
-      .not("coursera_course", "is", null)
-      .neq("coursera_course", "");
-    if (subErr) throw subErr;
+    const sync = url.searchParams.get("sync");
 
-    const courseLevelMap = new Map<string, string>();
-    for (const s of (submissions || [])) {
-      const course = s.coursera_course?.trim();
-      if (!course) continue;
-      const level = s.level || "Beginner";
-      if (!courseLevelMap.has(course) || (courseLevelMap.get(course) === "Beginner" && level !== "Beginner")) {
-        courseLevelMap.set(course, level);
+    if (sync === "true") {
+      // ── SYNC projects from submissions ──
+      const { data: submissions, error: subErr } = await supabase
+        .from("submissions")
+        .select("coursera_course, level")
+        .not("coursera_course", "is", null)
+        .neq("coursera_course", "");
+      if (subErr) throw subErr;
+
+      const courseLevelMap = new Map<string, string>();
+      for (const s of (submissions || [])) {
+        const course = s.coursera_course?.trim();
+        if (!course) continue;
+        const level = s.level || "Beginner";
+        if (!courseLevelMap.has(course) || (courseLevelMap.get(course) === "Beginner" && level !== "Beginner")) {
+          courseLevelMap.set(course, level);
+        }
       }
-    }
 
-    const uniqueCourses = [...courseLevelMap.keys()];
+      const uniqueCourses = [...courseLevelMap.keys()];
 
-    const { data: existing, error: exErr } = await supabase
-      .from("projects")
-      .select("course_name");
-    if (exErr) throw exErr;
-    const existingNames = new Set((existing || []).map((p: any) => p.course_name));
+      const { data: existing, error: exErr } = await supabase
+        .from("projects")
+        .select("course_name");
+      if (exErr) throw exErr;
+      const existingNames = new Set((existing || []).map((p: any) => p.course_name));
 
-    const { data: savedWeights } = await supabase
-      .from("default_weights")
-      .select("level, weight");
-    const weightMap: Record<string, number> = { ...DEFAULT_WEIGHTS };
-    for (const row of savedWeights || []) {
-      weightMap[row.level] = Number(row.weight);
-    }
+      const { data: savedWeights } = await supabase
+        .from("default_weights")
+        .select("level, weight");
+      const weightMap: Record<string, number> = { ...DEFAULT_WEIGHTS };
+      for (const row of savedWeights || []) {
+        weightMap[row.level] = Number(row.weight);
+      }
 
-    const newProjects = uniqueCourses
-      .filter((name: string) => !existingNames.has(name))
-      .map((name: string) => {
-        const level = courseLevelMap.get(name) || "Beginner";
-        return {
-          course_name: name,
-          level,
-          weight: weightMap[level] ?? DEFAULT_WEIGHTS["Beginner"],
-        };
-      });
+      const newProjects = uniqueCourses
+        .filter((name: string) => !existingNames.has(name))
+        .map((name: string) => {
+          const level = courseLevelMap.get(name) || "Beginner";
+          return {
+            course_name: name,
+            level,
+            weight: weightMap[level] ?? DEFAULT_WEIGHTS["Beginner"],
+          };
+        });
 
-    if (newProjects.length > 0) {
-      await supabase.from("projects").insert(newProjects);
+      if (newProjects.length > 0) {
+        await supabase.from("projects").insert(newProjects);
+      }
     }
 
     const { data: projects, error: projErr } = await supabase

@@ -12,10 +12,8 @@ import AdminRequests from "@/components/admin/AdminRequests";
 const HEAD_ADMIN_EMAIL = "agoel2_be23@thapar.edu";
 
 export default function AdminDashboard() {
-  const { user, profile, loading: authLoading } = useAuth();
-  const isHeadAdmin = profile?.email === HEAD_ADMIN_EMAIL;
+  const { user, profile, isAdmin, isHeadAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -23,17 +21,9 @@ export default function AdminDashboard() {
       navigate("/auth", { replace: true });
       return;
     }
-    supabase
-      .from("user_roles" as any)
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .then(({ data }: any) => {
-        setIsAdmin(data && data.length > 0);
-      });
   }, [user, authLoading, navigate]);
 
-  if (authLoading || isAdmin === null) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

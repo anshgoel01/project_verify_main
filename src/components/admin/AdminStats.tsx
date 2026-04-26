@@ -128,11 +128,13 @@ export default function AdminStats() {
             levelCounts: statsData.levelCounts,
           });
 
-          // Ensure 14 days of data even if there are empty days
+          // Ensure 14 days of data even if there are empty days (using local timezone, not UTC)
           const dayMap: Record<string, number> = {};
           for (let i = 13; i >= 0; i--) {
-            const d = new Date(Date.now() - i * 86400000);
-            dayMap[d.toISOString().slice(0, 10)] = 0;
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            dayMap[localDateStr] = 0;
           }
 
           if (Array.isArray(statsData.dailyCounts)) {

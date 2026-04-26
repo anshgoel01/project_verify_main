@@ -364,7 +364,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ─── TECH STACK ─── */}
+      {/* ─── TECH STACK ───
       <section className="container py-10 md:py-14 text-center">
         <SectionBadge label="Built With" />
         <motion.h2 initial="hidden" whileInView="visible" viewport={{ once: true }} custom={0} variants={fadeUp}
@@ -377,7 +377,7 @@ export default function Landing() {
             <Badge key={t} variant="secondary" className="text-xs font-normal">{t}</Badge>
           ))}
         </motion.div>
-      </section>
+      </section> */}
 
       {/* ─── FAQ ─── */}
       <section className="container py-10 md:py-14">

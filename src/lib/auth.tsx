@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { THAPAR_COLLEGE_ID } from "@/lib/constants";
+import { THAPAR_COLLEGE_ID, isHeadAdmin as checkHeadAdmin } from "@/lib/constants";
 import type { User, Session } from "@supabase/supabase-js";
 
 type Profile = {
@@ -23,6 +23,8 @@ type AuthContextType = {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
+  isAdmin: boolean;
+  isHeadAdmin: boolean;
   loading: boolean;
   profileLoading: boolean;
   signUp: (email: string, password: string, fullName: string, collegeId: string, rollNo: string, linkedinUrl?: string) => Promise<SignUpResult>;
@@ -40,8 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(true);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data: roles } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin");
+    setIsAdmin(roles && roles.length > 0 ? true : false);
+  };
 
   const fetchProfile = async (userId: string, userEmail?: string) => {
     setProfileLoading(true);
@@ -77,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
         }
       }
+      await checkAdminStatus(userId);
     } catch {
       setProfile(null);
     } finally {
@@ -197,7 +210,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, profileLoading, signUp, signIn, signOut, refreshProfile, verifyOtp, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      profile, 
+      isAdmin, 
+      isHeadAdmin: checkHeadAdmin(user?.email),
+      loading, 
+      profileLoading, 
+      signUp, 
+      signIn, 
+      signOut, 
+      refreshProfile, 
+      verifyOtp, 
+      resetPassword, 
+      updatePassword 
+    }}>
       {children}
     </AuthContext.Provider>
   );

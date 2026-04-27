@@ -100,6 +100,10 @@ const faqs = [
   {
     question: "Why isn’t my Coursera link working?",
     answer: "Make sure the link you’re submitting is specifically from a Coursera Guided Project. This platform only accepts Guided Project links, so regular course links, specializations, or certificates won’t work here"
+  },
+  {
+    question: "How are ranks decided?",
+    answer: "Ranks are determined purely by the quality and level of the projects you upload. More advanced, impactful projects lead to higher rankings."
   }
 ];
 
@@ -251,7 +255,7 @@ export default function Landing() {
               <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
                 <Clock className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="text-4xl font-black text-foreground">&lt; 15s</p>
+              <p className="text-4xl font-black text-foreground">&lt; 10s</p>
             </motion.div>
             <p className="text-sm text-muted-foreground">Avg Verification Time</p>
           </div>

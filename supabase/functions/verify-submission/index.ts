@@ -605,6 +605,25 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, serviceKey);
 
+  // Enforce submission control validation
+  try {
+    const { data: configRows } = await supabase
+      .from("system_config")
+      .select("value")
+      .eq("key", "allow_submissions")
+      .maybeSingle();
+      
+    const allowSubmissions = configRows?.value ?? true;
+    if (allowSubmissions === false) {
+      return new Response(JSON.stringify({ error: "Submissions are currently disabled by admin." }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  } catch (err) {
+    console.error("Failed to verify allow_submissions state:", err);
+  }
+
   try {
     const body = await req.json();
     submission_id = body.submission_id;

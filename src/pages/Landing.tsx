@@ -255,7 +255,7 @@ export default function Landing() {
               <div className="h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
                 <Clock className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="text-4xl font-black text-foreground">&lt; 10s</p>
+              <p className="text-4xl font-black text-foreground">&lt; 5s</p>
             </motion.div>
             <p className="text-sm text-muted-foreground">Avg Verification Time</p>
           </div>

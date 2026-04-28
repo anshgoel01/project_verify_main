@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,45 @@ export default function Submit() {
   const [helpModal, setHelpModal] = useState<{ title: string; image: string } | null>(null);
   const [showLinkedInTip, setShowLinkedInTip] = useState(false);
   const [linkedinFocused, setLinkedinFocused] = useState(false);
+  const [allowSubmissions, setAllowSubmissions] = useState(true);
+
+  useEffect(() => {
+    supabase
+      .from("system_config" as any)
+      .select("value")
+      .eq("key", "allow_submissions")
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data && typeof data.value === "boolean") {
+          setAllowSubmissions(data.value);
+        }
+      });
+
+    const channel = supabase
+      .channel("system-config-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "system_config",
+          filter: "key=eq.allow_submissions",
+        },
+        (payload) => {
+          if (payload.new && typeof payload.new.value === "boolean") {
+            setAllowSubmissions(payload.new.value);
+            if (!payload.new.value) {
+              toast.error("Submissions are currently disabled by admin.");
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const linksValid =
     courseraLink.includes("coursera.org/account/accomplishments/verify/") &&
@@ -192,6 +231,14 @@ export default function Submit() {
 
   return (
     <div className="container max-w-lg py-10">
+      {!allowSubmissions && (
+        <Alert variant="destructive" className="mb-6 bg-red-500/15 border-red-500/30 text-red-500">
+          <AlertTriangle className="h-4 w-4 mt-0.5" />
+          <AlertDescription className="font-medium">
+            Submissions are currently disabled by Admin
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -355,28 +402,37 @@ export default function Submit() {
               </Alert>
             )}
 
-            {!verified ? (
-              <Button
-                type="button"
-                className="w-full"
-                disabled={verifying || !linksValid || !profile?.linkedin_url}
-                onClick={handleVerify}
-              >
-                {verifying ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</>
-                ) : (
-                  <><ShieldCheck className="h-4 w-4" /> Verify</>
-                )}
-              </Button>
-            ) : (
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
-                ) : (
-                  <><Send className="h-4 w-4" /> Submit</>
-                )}
-              </Button>
-            )}
+            <div
+              className={!allowSubmissions ? "cursor-not-allowed w-full" : "w-full"}
+              title={!allowSubmissions ? "Submissions are currently disabled by admin." : undefined}
+            >
+              {!verified ? (
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={verifying || !linksValid || !profile?.linkedin_url || !allowSubmissions}
+                  onClick={handleVerify}
+                >
+                  {verifying ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</>
+                  ) : (
+                    <><ShieldCheck className="h-4 w-4" /> Verify</>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={submitting || !allowSubmissions}
+                >
+                  {submitting ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Submitting...</>
+                  ) : (
+                    <><Send className="h-4 w-4" /> Submit</>
+                  )}
+                </Button>
+              )}
+            </div>
           </form>
         </CardContent>
       </Card>

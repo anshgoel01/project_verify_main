@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, FileCheck, BarChart3, TrendingUp, Download, ChevronDown, Lock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +73,38 @@ export default function AdminStats() {
   const [selectedColumns, setSelectedColumns] = useState<string[]>(["coursera_link", "linkedin_link", "marks"]);
   const [colleges, setColleges] = useState<{ id: string; name: string }[]>([]);
   const [selectedCollege, setSelectedCollege] = useState("all");
+  const [allowSubmissions, setAllowSubmissions] = useState(true);
+  const [updatingConfig, setUpdatingConfig] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("system_config" as any)
+      .select("value")
+      .eq("key", "allow_submissions")
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (data && typeof data.value === "boolean") {
+          setAllowSubmissions(data.value);
+        }
+      });
+  }, []);
+
+  const handleToggleSubmissions = async (checked: boolean) => {
+    setUpdatingConfig(true);
+    try {
+      const { error } = await supabase
+        .from("system_config" as any)
+        .upsert({ key: "allow_submissions", value: checked });
+
+      if (error) throw error;
+      setAllowSubmissions(checked);
+      toast.success(`Submissions ${checked ? "enabled" : "disabled"} successfully.`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update submission state.");
+    } finally {
+      setUpdatingConfig(false);
+    }
+  };
 
   useEffect(() => {
     supabase.from("colleges").select("id, name").order("name").then(({ data }) => {
@@ -184,6 +217,18 @@ export default function AdminStats() {
             </div>
 
             <div className="flex flex-wrap gap-3 items-center">
+              <div className="flex items-center space-x-2 bg-background border rounded-lg px-3 py-2 h-11 shadow-sm">
+                <Switch 
+                  id="submission-toggle" 
+                  checked={allowSubmissions} 
+                  onCheckedChange={handleToggleSubmissions}
+                  disabled={updatingConfig}
+                />
+                <Label htmlFor="submission-toggle" className="text-sm font-semibold cursor-pointer">
+                  {allowSubmissions ? "Submissions" : "Disabled"}
+                </Label>
+              </div>
+
               {/* <Select value={selectedCollege} onValueChange={setSelectedCollege}>
                 <SelectTrigger className="w-[180px] bg-background">
                   <SelectValue placeholder="All Colleges" />

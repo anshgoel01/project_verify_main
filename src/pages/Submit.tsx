@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeSubmissionUrl } from "@/lib/utils";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Send, Loader2, CheckCircle2, XCircle, ShieldCheck, Info, AlertTriangle, Linkedin, Mail } from "lucide-react";
@@ -93,6 +94,10 @@ export default function Submit() {
   const handleVerify = async () => {
     if (!user || !profile) return;
 
+    const normalizedCourseraLink = normalizeSubmissionUrl(courseraLink);
+    const normalizedLinkedinLink = normalizeSubmissionUrl(linkedinLink);
+    const normalizedProjectLink = normalizeSubmissionUrl(projectLink);
+
     const validation = submissionSchema.safeParse({
       courseraLink,
       linkedinLink,
@@ -121,7 +126,7 @@ export default function Submit() {
         .from("submissions")
         .select("id, status")
         .eq("user_id", user.id)
-        .eq("project_link", projectLink.trim())
+        .eq("project_link", normalizedProjectLink)
         .in("status", ["correct", "processing"])
         .limit(1);
 
@@ -140,7 +145,7 @@ export default function Submit() {
         .from("submissions")
         .select("id")
         .eq("user_id", user.id)
-        .eq("coursera_link", courseraLink.trim())
+        .eq("coursera_link", normalizedCourseraLink)
         .in("status", ["correct", "processing"])
         .limit(1);
 
@@ -155,9 +160,9 @@ export default function Submit() {
         .insert({
           user_id: user.id,
           college_id: profile.college_id,
-          coursera_link: courseraLink.trim(),
-          linkedin_link: linkedinLink.trim(),
-          project_link: projectLink.trim(),
+          coursera_link: normalizedCourseraLink,
+          linkedin_link: normalizedLinkedinLink,
+          project_link: normalizedProjectLink,
         } as any)
         .select()
         .single();

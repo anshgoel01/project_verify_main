@@ -19,6 +19,27 @@ function normalizeText(text: string | null): string {
     .trim();
 }
 
+function normalizeSubmissionUrl(rawUrl: string): string {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+
+  try {
+    const parsed = new URL(trimmed.startsWith("http://") || trimmed.startsWith("https://") ? trimmed : `https://${trimmed}`);
+    parsed.hash = "";
+    parsed.search = "";
+    parsed.hostname = parsed.hostname.replace(/^www\./i, "");
+
+    const pathname = parsed.pathname.replace(/\/+$/, "") || "/";
+    return `${parsed.origin}${pathname}`;
+  } catch {
+    return trimmed
+      .replace(/^https?:\/\//i, "https://")
+      .replace(/^https:\/\/www\./i, "https://")
+      .replace(/[?#].*$/, "")
+      .replace(/\/+$/, "");
+  }
+}
+
 // ✅ FIXED: word-based matching + compact fallback for LinkedIn slugs
 function namesMatch(a: string, b: string, threshold = 80): boolean {
   if (!a || !b) return false;
@@ -424,11 +445,11 @@ async function verifySubmission(supabase: any, submission: any, userName: string
 
   // Scrape certificate link, project link, and LinkedIn caption in parallel
   const [certResult, projectResult, linkedinCaption] = await Promise.all([
-    scrapeCoursera(submission.coursera_link),
+    scrapeCoursera(normalizeSubmissionUrl(submission.coursera_link)),
     submission.project_link
-      ? scrapeCoursera(submission.project_link)
+      ? scrapeCoursera(normalizeSubmissionUrl(submission.project_link))
       : Promise.resolve({ name: "", course: "", level: "Beginner" }),
-    scrapeLinkedInCaption(submission.linkedin_link),
+    scrapeLinkedInCaption(normalizeSubmissionUrl(submission.linkedin_link)),
   ]);
 
   const { name: courseraName, course: courseraCourse } = certResult;

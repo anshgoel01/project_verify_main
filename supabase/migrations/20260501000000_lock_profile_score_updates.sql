@@ -7,3 +7,4 @@ REVOKE UPDATE ON public.profiles FROM authenticated;
 GRANT UPDATE (full_name, roll_no, linkedin_url) ON public.profiles TO authenticated;
 
 COMMIT;
+
